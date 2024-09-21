@@ -143,10 +143,9 @@ pub use item::Item;
 
 pub use session::EncryptionType;
 
-use crate::proxy::service::ServiceProxy;
-use crate::session::Session;
-use crate::ss::SS_COLLECTION_LABEL;
-use crate::util::exec_prompt;
+use crate::{
+	proxy::service::ServiceProxy, session::Session, ss::SS_COLLECTION_LABEL, util::exec_prompt,
+};
 use futures_util::TryFutureExt;
 use std::collections::HashMap;
 use zbus::zvariant::{ObjectPath, Value};
@@ -159,272 +158,243 @@ use zbus::zvariant::{ObjectPath, Value};
 /// and negotiate a new cryptographic session
 /// ([EncryptionType::Plain] or [EncryptionType::Dh])
 pub struct SecretService<'a> {
-    conn: zbus::Connection,
-    session: Session,
-    service_proxy: ServiceProxy<'a>,
+	conn: zbus::Connection,
+	session: Session,
+	service_proxy: ServiceProxy<'a>,
 }
 
 /// Used to indicate locked and unlocked items in the
 /// return value of [SecretService::search_items]
 /// and [blocking::SecretService::search_items].
 pub struct SearchItemsResult<T> {
-    pub unlocked: Vec<T>,
-    pub locked: Vec<T>,
+	pub unlocked: Vec<T>,
+	pub locked: Vec<T>,
 }
 
 impl<'a> SecretService<'a> {
-    /// Create a new `SecretService` instance.
-    pub async fn connect(encryption: EncryptionType) -> Result<SecretService<'a>, Error> {
-        let conn = zbus::Connection::session()
-            .await
-            .map_err(util::handle_conn_error)?;
+	/// Create a new `SecretService` instance.
+	pub async fn connect(encryption: EncryptionType) -> Result<SecretService<'a>, Error> {
+		let conn = zbus::Connection::session().await.map_err(util::handle_conn_error)?;
 
-        let service_proxy = ServiceProxy::new(&conn)
-            .await
-            .map_err(util::handle_conn_error)?;
+		let service_proxy = ServiceProxy::new(&conn).await.map_err(util::handle_conn_error)?;
 
-        let session = Session::new(&service_proxy, encryption).await?;
+		let session = Session::new(&service_proxy, encryption).await?;
 
-        Ok(SecretService {
-            conn,
-            session,
-            service_proxy,
-        })
-    }
+		Ok(SecretService { conn, session, service_proxy })
+	}
 
-    /// Get all collections
-    pub async fn get_all_collections(&self) -> Result<Vec<Collection<'_>>, Error> {
-        let collections = self.service_proxy.collections().await?;
+	/// Get all collections
+	pub async fn get_all_collections(&self) -> Result<Vec<Collection<'_>>, Error> {
+		let collections = self.service_proxy.collections().await?;
 
-        futures_util::future::join_all(collections.into_iter().map(|object_path| {
-            Collection::new(
-                self.conn.clone(),
-                &self.session,
-                &self.service_proxy,
-                object_path.into(),
-            )
-        }))
-        .await
-        .into_iter()
-        .collect::<Result<_, _>>()
-    }
+		futures_util::future::join_all(collections.into_iter().map(|object_path| {
+			Collection::new(
+				self.conn.clone(),
+				&self.session,
+				&self.service_proxy,
+				object_path.into(),
+			)
+		}))
+		.await
+		.into_iter()
+		.collect::<Result<_, _>>()
+	}
 
-    /// Get collection by alias.
-    ///
-    /// Most common would be the `default` alias, but there
-    /// is also a specific method for getting the collection
-    /// by default alias.
-    pub async fn get_collection_by_alias(&self, alias: &str) -> Result<Collection<'_>, Error> {
-        let object_path = self.service_proxy.read_alias(alias).await?;
+	/// Get collection by alias.
+	///
+	/// Most common would be the `default` alias, but there
+	/// is also a specific method for getting the collection
+	/// by default alias.
+	pub async fn get_collection_by_alias(&self, alias: &str) -> Result<Collection<'_>, Error> {
+		let object_path = self.service_proxy.read_alias(alias).await?;
 
-        if object_path.as_str() == "/" {
-            Err(Error::NoResult)
-        } else {
-            Collection::new(
-                self.conn.clone(),
-                &self.session,
-                &self.service_proxy,
-                object_path,
-            )
-            .await
-        }
-    }
+		if object_path.as_str() == "/" {
+			Err(Error::NoResult)
+		} else {
+			Collection::new(self.conn.clone(), &self.session, &self.service_proxy, object_path)
+				.await
+		}
+	}
 
-    /// Get default collection.
-    /// (The collection whos alias is `default`)
-    pub async fn get_default_collection(&self) -> Result<Collection<'_>, Error> {
-        self.get_collection_by_alias("default").await
-    }
+	/// Get default collection.
+	/// (The collection whos alias is `default`)
+	pub async fn get_default_collection(&self) -> Result<Collection<'_>, Error> {
+		self.get_collection_by_alias("default").await
+	}
 
-    /// Get any collection.
-    /// First tries `default` collection, then `session`
-    /// collection, then the first collection when it
-    /// gets all collections.
-    pub async fn get_any_collection(&self) -> Result<Collection<'_>, Error> {
-        // default first, then session, then first
+	/// Get any collection.
+	/// First tries `default` collection, then `session`
+	/// collection, then the first collection when it
+	/// gets all collections.
+	pub async fn get_any_collection(&self) -> Result<Collection<'_>, Error> {
+		// default first, then session, then first
 
-        self.get_default_collection()
-            .or_else(|_| self.get_collection_by_alias("session"))
-            .or_else(|_| async {
-                let mut collections = self.get_all_collections().await?;
-                if collections.is_empty() {
-                    Err(Error::NoResult)
-                } else {
-                    Ok(collections.swap_remove(0))
-                }
-            })
-            .await
-    }
+		self.get_default_collection()
+			.or_else(|_| self.get_collection_by_alias("session"))
+			.or_else(|_| async {
+				let mut collections = self.get_all_collections().await?;
+				if collections.is_empty() {
+					Err(Error::NoResult)
+				} else {
+					Ok(collections.swap_remove(0))
+				}
+			})
+			.await
+	}
 
-    /// Creates a new collection with a label and an alias.
-    pub async fn create_collection(
-        &self,
-        label: &str,
-        alias: &str,
-    ) -> Result<Collection<'_>, Error> {
-        let mut properties: HashMap<&str, Value> = HashMap::new();
-        properties.insert(SS_COLLECTION_LABEL, label.into());
+	/// Creates a new collection with a label and an alias.
+	pub async fn create_collection(
+		&self,
+		label: &str,
+		alias: &str,
+	) -> Result<Collection<'_>, Error> {
+		let mut properties: HashMap<&str, Value> = HashMap::new();
+		properties.insert(SS_COLLECTION_LABEL, label.into());
 
-        let created_collection = self
-            .service_proxy
-            .create_collection(properties, alias)
-            .await?;
+		let created_collection = self.service_proxy.create_collection(properties, alias).await?;
 
-        // This prompt handling is practically identical to create_collection
-        let collection_path: ObjectPath = {
-            // Get path of created object
-            let created_path = created_collection.collection;
+		// This prompt handling is practically identical to create_collection
+		let collection_path: ObjectPath = {
+			// Get path of created object
+			let created_path = created_collection.collection;
 
-            // Check if that path is "/", if so should execute a prompt
-            if created_path.as_str() == "/" {
-                let prompt_path = created_collection.prompt;
+			// Check if that path is "/", if so should execute a prompt
+			if created_path.as_str() == "/" {
+				let prompt_path = created_collection.prompt;
 
-                // Exec prompt and parse result
-                let prompt_res = exec_prompt(self.conn.clone(), &prompt_path).await?;
-                prompt_res.try_into()?
-            } else {
-                // if not, just return created path
-                created_path.into()
-            }
-        };
+				// Exec prompt and parse result
+				let prompt_res = exec_prompt(self.conn.clone(), &prompt_path).await?;
+				prompt_res.try_into()?
+			} else {
+				// if not, just return created path
+				created_path.into()
+			}
+		};
 
-        Collection::new(
-            self.conn.clone(),
-            &self.session,
-            &self.service_proxy,
-            collection_path.into(),
-        )
-        .await
-    }
+		Collection::new(
+			self.conn.clone(),
+			&self.session,
+			&self.service_proxy,
+			collection_path.into(),
+		)
+		.await
+	}
 
-    /// Searches all items by attributes
-    pub async fn search_items(
-        &self,
-        attributes: HashMap<&str, &str>,
-    ) -> Result<SearchItemsResult<Item<'_>>, Error> {
-        let items = self.service_proxy.search_items(attributes).await?;
+	/// Searches all items by attributes
+	pub async fn search_items(
+		&self,
+		attributes: HashMap<&str, &str>,
+	) -> Result<SearchItemsResult<Item<'_>>, Error> {
+		let items = self.service_proxy.search_items(attributes).await?;
 
-        let object_paths_to_items = |items: Vec<_>| {
-            futures_util::future::join_all(items.into_iter().map(|item_path| {
-                Item::new(
-                    self.conn.clone(),
-                    &self.session,
-                    &self.service_proxy,
-                    item_path,
-                )
-            }))
-        };
+		let object_paths_to_items = |items: Vec<_>| {
+			futures_util::future::join_all(items.into_iter().map(|item_path| {
+				Item::new(self.conn.clone(), &self.session, &self.service_proxy, item_path)
+			}))
+		};
 
-        Ok(SearchItemsResult {
-            unlocked: object_paths_to_items(items.unlocked)
-                .await
-                .into_iter()
-                .collect::<Result<_, _>>()?,
-            locked: object_paths_to_items(items.locked)
-                .await
-                .into_iter()
-                .collect::<Result<_, _>>()?,
-        })
-    }
+		Ok(SearchItemsResult {
+			unlocked: object_paths_to_items(items.unlocked)
+				.await
+				.into_iter()
+				.collect::<Result<_, _>>()?,
+			locked: object_paths_to_items(items.locked)
+				.await
+				.into_iter()
+				.collect::<Result<_, _>>()?,
+		})
+	}
 }
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use std::convert::TryFrom;
-    use zbus::zvariant::ObjectPath;
+	use super::*;
+	use std::convert::TryFrom;
+	use zbus::zvariant::ObjectPath;
 
-    #[tokio::test]
-    async fn should_create_secret_service() {
-        SecretService::connect(EncryptionType::Plain).await.unwrap();
-    }
+	#[tokio::test]
+	async fn should_create_secret_service() {
+		SecretService::connect(EncryptionType::Plain).await.unwrap();
+	}
 
-    #[tokio::test]
-    async fn should_get_all_collections() {
-        // Assumes that there will always be a default collection
-        let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
-        let collections = ss.get_all_collections().await.unwrap();
-        assert!(!collections.is_empty(), "no collections found");
-    }
+	#[tokio::test]
+	async fn should_get_all_collections() {
+		// Assumes that there will always be a default collection
+		let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
+		let collections = ss.get_all_collections().await.unwrap();
+		assert!(!collections.is_empty(), "no collections found");
+	}
 
-    #[tokio::test]
-    async fn should_get_collection_by_alias() {
-        let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
-        ss.get_collection_by_alias("session").await.unwrap();
-    }
+	#[tokio::test]
+	async fn should_get_collection_by_alias() {
+		let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
+		ss.get_collection_by_alias("session").await.unwrap();
+	}
 
-    #[tokio::test]
-    async fn should_return_error_if_collection_doesnt_exist() {
-        let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
+	#[tokio::test]
+	async fn should_return_error_if_collection_doesnt_exist() {
+		let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
 
-        match ss
-            .get_collection_by_alias("definitely_defintely_does_not_exist")
-            .await
-        {
-            Err(Error::NoResult) => {}
-            _ => panic!(),
-        };
-    }
+		match ss.get_collection_by_alias("definitely_defintely_does_not_exist").await {
+			Err(Error::NoResult) => {}
+			_ => panic!(),
+		};
+	}
 
-    #[tokio::test]
-    async fn should_get_default_collection() {
-        let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
-        ss.get_default_collection().await.unwrap();
-    }
+	#[tokio::test]
+	async fn should_get_default_collection() {
+		let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
+		ss.get_default_collection().await.unwrap();
+	}
 
-    #[tokio::test]
-    async fn should_get_any_collection() {
-        let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
-        let _ = ss.get_any_collection().await.unwrap();
-    }
+	#[tokio::test]
+	async fn should_get_any_collection() {
+		let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
+		let _ = ss.get_any_collection().await.unwrap();
+	}
 
-    #[tokio::test]
-    async fn should_create_and_delete_collection() {
-        let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
-        let test_collection = ss.create_collection("Test", "").await.unwrap();
-        assert_eq!(
-            ObjectPath::from(test_collection.collection_path.clone()),
-            ObjectPath::try_from("/org/freedesktop/secrets/collection/Test").unwrap()
-        );
-        test_collection.delete().await.unwrap();
-    }
+	#[tokio::test]
+	async fn should_create_and_delete_collection() {
+		let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
+		let test_collection = ss.create_collection("Test", "").await.unwrap();
+		assert_eq!(
+			ObjectPath::from(test_collection.collection_path.clone()),
+			ObjectPath::try_from("/org/freedesktop/secrets/collection/Test").unwrap()
+		);
+		test_collection.delete().await.unwrap();
+	}
 
-    #[tokio::test]
-    async fn should_search_items() {
-        let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
-        let collection = ss.get_default_collection().await.unwrap();
+	#[tokio::test]
+	async fn should_search_items() {
+		let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
+		let collection = ss.get_default_collection().await.unwrap();
 
-        // Create an item
-        let item = collection
-            .create_item(
-                "test",
-                HashMap::from([("test_attribute_in_ss", "test_value")]),
-                b"test_secret",
-                false,
-                "text/plain",
-            )
-            .await
-            .unwrap();
+		// Create an item
+		let item = collection
+			.create_item(
+				"test",
+				HashMap::from([("test_attribute_in_ss", "test_value")]),
+				b"test_secret",
+				false,
+				"text/plain",
+			)
+			.await
+			.unwrap();
 
-        // handle empty vec search
-        ss.search_items(HashMap::new()).await.unwrap();
+		// handle empty vec search
+		ss.search_items(HashMap::new()).await.unwrap();
 
-        // handle no result
-        let bad_search = ss
-            .search_items(HashMap::from([("test", "test")]))
-            .await
-            .unwrap();
-        assert_eq!(bad_search.unlocked.len(), 0);
-        assert_eq!(bad_search.locked.len(), 0);
+		// handle no result
+		let bad_search = ss.search_items(HashMap::from([("test", "test")])).await.unwrap();
+		assert_eq!(bad_search.unlocked.len(), 0);
+		assert_eq!(bad_search.locked.len(), 0);
 
-        // handle correct search for item and compare
-        let search_item = ss
-            .search_items(HashMap::from([("test_attribute_in_ss", "test_value")]))
-            .await
-            .unwrap();
+		// handle correct search for item and compare
+		let search_item =
+			ss.search_items(HashMap::from([("test_attribute_in_ss", "test_value")])).await.unwrap();
 
-        assert_eq!(item.item_path, search_item.unlocked[0].item_path);
-        assert_eq!(search_item.locked.len(), 0);
-        item.delete().await.unwrap();
-    }
+		assert_eq!(item.item_path, search_item.unlocked[0].item_path);
+		assert_eq!(search_item.locked.len(), 0);
+		item.delete().await.unwrap();
+	}
 }
