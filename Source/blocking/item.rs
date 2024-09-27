@@ -89,6 +89,7 @@ impl<'a> Item<'a> {
 	pub fn delete(&self) -> Result<(), Error> {
 		// ensure_unlocked handles prompt for unlocking if necessary
 		self.ensure_unlocked()?;
+
 		let prompt_path = self.item_proxy.delete()?;
 
 		// "/" means no prompt necessary
@@ -101,6 +102,7 @@ impl<'a> Item<'a> {
 
 	pub fn get_secret(&self) -> Result<Vec<u8>, Error> {
 		let secret_struct = self.item_proxy.get_secret(&self.session.object_path)?;
+
 		let secret = secret_struct.value;
 
 		if let Some(session_key) = self.session.get_aes_key() {
@@ -118,6 +120,7 @@ impl<'a> Item<'a> {
 
 	pub fn get_secret_content_type(&self) -> Result<String, Error> {
 		let secret_struct = self.item_proxy.get_secret(&self.session.object_path)?;
+
 		let content_type = secret_struct.content_type;
 
 		Ok(content_type)
@@ -156,7 +159,9 @@ mod test {
 	#[test]
 	fn should_create_and_delete_item() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
+
 		let collection = ss.get_default_collection().unwrap();
+
 		let item = create_test_default_item(&collection);
 
 		item.delete().unwrap();
@@ -169,7 +174,9 @@ mod test {
 	#[test]
 	fn should_check_if_item_locked() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
+
 		let collection = ss.get_default_collection().unwrap();
+
 		let item = create_test_default_item(&collection);
 
 		item.is_locked().unwrap();
@@ -180,7 +187,9 @@ mod test {
 	#[ignore]
 	fn should_lock_and_unlock() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
+
 		let collection = ss.get_default_collection().unwrap();
+
 		let item = create_test_default_item(&collection);
 
 		let locked = item.is_locked().unwrap();
@@ -203,11 +212,14 @@ mod test {
 	#[test]
 	fn should_get_and_set_item_label() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
+
 		let collection = ss.get_default_collection().unwrap();
+
 		let item = create_test_default_item(&collection);
 
 		// Set label to test and check
 		item.set_label("Tester").unwrap();
+
 		let label = item.get_label().unwrap();
 		assert_eq!(label, "Tester");
 		item.delete().unwrap();
@@ -216,7 +228,9 @@ mod test {
 	#[test]
 	fn should_create_with_item_attributes() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
+
 		let collection = ss.get_default_collection().unwrap();
+
 		let item = collection
 			.create_item(
 				"Test",
@@ -226,6 +240,7 @@ mod test {
 				"text/plain",
 			)
 			.unwrap();
+
 		let attributes = item.get_attributes().unwrap();
 		assert_eq!(
 			attributes,
@@ -237,12 +252,15 @@ mod test {
 	#[test]
 	fn should_get_and_set_item_attributes() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
+
 		let collection = ss.get_default_collection().unwrap();
+
 		let item = create_test_default_item(&collection);
 
 		// Also test empty array handling
 		item.set_attributes(HashMap::new()).unwrap();
 		item.set_attributes(HashMap::from([("test_attributes_in_item_get", "test")])).unwrap();
+
 		let attributes = item.get_attributes().unwrap();
 		assert_eq!(
 			attributes,
@@ -254,11 +272,15 @@ mod test {
 	#[test]
 	fn should_get_modified_created_props() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
+
 		let collection = ss.get_default_collection().unwrap();
+
 		let item = create_test_default_item(&collection);
 
 		item.set_label("Tester").unwrap();
+
 		let _created = item.get_created().unwrap();
+
 		let _modified = item.get_modified().unwrap();
 		item.delete().unwrap();
 	}
@@ -266,7 +288,9 @@ mod test {
 	#[test]
 	fn should_create_and_get_secret() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
+
 		let collection = ss.get_default_collection().unwrap();
+
 		let item = create_test_default_item(&collection);
 
 		let secret = item.get_secret().unwrap();
@@ -277,7 +301,9 @@ mod test {
 	#[test]
 	fn should_create_and_get_secret_encrypted() {
 		let ss = SecretService::connect(EncryptionType::Dh).unwrap();
+
 		let collection = ss.get_default_collection().unwrap();
+
 		let item = create_test_default_item(&collection);
 
 		let secret = item.get_secret().unwrap();
@@ -288,7 +314,9 @@ mod test {
 	#[test]
 	fn should_get_secret_content_type() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
+
 		let collection = ss.get_default_collection().unwrap();
+
 		let item = create_test_default_item(&collection);
 
 		let content_type = item.get_secret_content_type().unwrap();
@@ -299,10 +327,13 @@ mod test {
 	#[test]
 	fn should_set_secret() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
+
 		let collection = ss.get_default_collection().unwrap();
+
 		let item = create_test_default_item(&collection);
 
 		item.set_secret(b"new_test", "text/plain").unwrap();
+
 		let secret = item.get_secret().unwrap();
 		item.delete().unwrap();
 		assert_eq!(secret, b"new_test");
@@ -311,10 +342,13 @@ mod test {
 	#[test]
 	fn should_create_encrypted_item() {
 		let ss = SecretService::connect(EncryptionType::Dh).unwrap();
+
 		let collection = ss.get_default_collection().unwrap();
+
 		let item = collection
 			.create_item("Test", HashMap::new(), b"test_encrypted", false, "text/plain")
 			.expect("Error on item creation");
+
 		let secret = item.get_secret().unwrap();
 		item.delete().unwrap();
 		assert_eq!(secret, b"test_encrypted");
@@ -323,10 +357,13 @@ mod test {
 	#[test]
 	fn should_create_encrypted_item_from_empty_secret() {
 		let ss = SecretService::connect(EncryptionType::Dh).unwrap();
+
 		let collection = ss.get_default_collection().unwrap();
+
 		let item = collection
 			.create_item("Test", HashMap::new(), b"", false, "text/plain")
 			.expect("Error on item creation");
+
 		let secret = item.get_secret().unwrap();
 		item.delete().unwrap();
 		assert_eq!(secret, b"");

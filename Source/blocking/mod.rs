@@ -46,6 +46,7 @@ impl<'a> SecretService<'a> {
 	/// Create a new `SecretService` instance
 	pub fn connect(encryption: EncryptionType) -> Result<Self, Error> {
 		let conn = zbus::blocking::Connection::session().map_err(util::handle_conn_error)?;
+
 		let service_proxy = ServiceProxyBlocking::new(&conn).map_err(util::handle_conn_error)?;
 
 		let session = Session::new_blocking(&service_proxy, encryption)?;
@@ -181,6 +182,7 @@ mod test {
 		// Assumes that there will always be a default
 		// collection
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
+
 		let collections = ss.get_all_collections().unwrap();
 		assert!(!collections.is_empty(), "no collections found");
 	}
@@ -210,12 +212,14 @@ mod test {
 	#[test]
 	fn should_get_any_collection() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
+
 		let _ = ss.get_any_collection().unwrap();
 	}
 
 	#[test]
 	fn should_create_and_delete_collection() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
+
 		let test_collection = ss.create_collection("Test", "").unwrap();
 		assert_eq!(
 			ObjectPath::from(test_collection.collection_path.clone()),
@@ -227,6 +231,7 @@ mod test {
 	#[test]
 	fn should_search_items() {
 		let ss = SecretService::connect(EncryptionType::Dh).unwrap();
+
 		let collection = ss.get_default_collection().unwrap();
 
 		// Create an item

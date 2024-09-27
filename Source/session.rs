@@ -68,10 +68,12 @@ struct Keypair {
 impl Keypair {
 	fn generate() -> Self {
 		let mut rng = OsRng {};
+
 		let mut private_key_bytes = [0; 128];
 		rng.fill(&mut private_key_bytes);
 
 		let private_key = BigUint::from_bytes_be(&private_key_bytes);
+
 		let public_key = powm(&DH_GENERATOR, &private_key, &DH_PRIME);
 
 		Self { private: private_key, public: public_key }
@@ -82,6 +84,7 @@ impl Keypair {
 		let common_secret = powm(server_public_key, &self.private, &DH_PRIME);
 
 		let mut common_secret_bytes = common_secret.to_bytes_be();
+
 		let mut common_secret_padded = vec![0; 128 - common_secret_bytes.len()];
 		common_secret_padded.append(&mut common_secret_bytes);
 
@@ -89,6 +92,7 @@ impl Keypair {
 
 		// input keying material
 		let ikm = common_secret_padded;
+
 		let salt = None;
 
 		// output keying material
@@ -265,7 +269,9 @@ mod test {
 	#[test]
 	fn should_create_plain_session() {
 		let conn = zbus::blocking::Connection::session().unwrap();
+
 		let service_proxy = ServiceProxyBlocking::new(&conn).unwrap();
+
 		let session = Session::new_blocking(&service_proxy, EncryptionType::Plain).unwrap();
 		assert!(session.get_aes_key().is_none());
 	}
@@ -273,7 +279,9 @@ mod test {
 	#[test]
 	fn should_create_encrypted_session() {
 		let conn = zbus::blocking::Connection::session().unwrap();
+
 		let service_proxy = ServiceProxyBlocking::new(&conn).unwrap();
+
 		let session = Session::new_blocking(&service_proxy, EncryptionType::Dh).unwrap();
 		assert!(session.get_aes_key().is_some());
 	}

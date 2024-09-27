@@ -321,6 +321,7 @@ mod test {
 	async fn should_get_all_collections() {
 		// Assumes that there will always be a default collection
 		let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
+
 		let collections = ss.get_all_collections().await.unwrap();
 		assert!(!collections.is_empty(), "no collections found");
 	}
@@ -350,12 +351,14 @@ mod test {
 	#[tokio::test]
 	async fn should_get_any_collection() {
 		let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
+
 		let _ = ss.get_any_collection().await.unwrap();
 	}
 
 	#[tokio::test]
 	async fn should_create_and_delete_collection() {
 		let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
+
 		let test_collection = ss.create_collection("Test", "").await.unwrap();
 		assert_eq!(
 			ObjectPath::from(test_collection.collection_path.clone()),
@@ -367,6 +370,7 @@ mod test {
 	#[tokio::test]
 	async fn should_search_items() {
 		let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
+
 		let collection = ss.get_default_collection().await.unwrap();
 
 		// Create an item

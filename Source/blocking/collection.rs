@@ -80,6 +80,7 @@ impl<'a> Collection<'a> {
 	pub fn delete(&self) -> Result<(), Error> {
 		// ensure_unlocked handles prompt for unlocking if necessary
 		self.ensure_unlocked()?;
+
 		let prompt_path = self.collection_proxy.delete()?;
 
 		// "/" means no prompt necessary
@@ -137,6 +138,7 @@ impl<'a> Collection<'a> {
 		let secret_struct = format_secret(self.session, secret, content_type)?;
 
 		let mut properties: HashMap<&str, Value> = HashMap::new();
+
 		let attributes: Dict = attributes.into();
 
 		properties.insert(SS_ITEM_LABEL, label.into());
@@ -173,6 +175,7 @@ mod test {
 	#[test]
 	fn should_create_collection_struct() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
+
 		let _ = ss.get_default_collection().unwrap();
 		// tested under SecretService struct
 	}
@@ -180,7 +183,9 @@ mod test {
 	#[test]
 	fn should_check_if_collection_locked() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
+
 		let collection = ss.get_default_collection().unwrap();
+
 		let _ = collection.is_locked().unwrap();
 	}
 
@@ -188,7 +193,9 @@ mod test {
 	#[ignore] // should unignore this test this manually, otherwise will constantly prompt during tests.
 	fn should_lock_and_unlock() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
+
 		let collection = ss.get_default_collection().unwrap();
+
 		let locked = collection.is_locked().unwrap();
 		if locked {
 			collection.unlock().unwrap();
@@ -209,7 +216,9 @@ mod test {
 	#[ignore]
 	fn should_delete_collection() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
+
 		let collections = ss.get_all_collections().unwrap();
+
 		let count_before = collections.len();
 		for collection in collections {
 			let collection_path = &*collection.collection_path;
@@ -226,6 +235,7 @@ mod test {
 	#[test]
 	fn should_get_all_items() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
+
 		let collection = ss.get_default_collection().unwrap();
 		collection.get_all_items().unwrap();
 	}
@@ -233,6 +243,7 @@ mod test {
 	#[test]
 	fn should_search_items() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
+
 		let collection = ss.get_default_collection().unwrap();
 
 		// Create an item
@@ -266,19 +277,23 @@ mod test {
 	#[ignore]
 	fn should_get_and_set_collection_label() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
+
 		let collection = ss.get_default_collection().unwrap();
+
 		let label = collection.get_label().unwrap();
 		assert_eq!(label, "Login");
 
 		// Set label to test and check
 		collection.unlock().unwrap();
 		collection.set_label("Test").unwrap();
+
 		let label = collection.get_label().unwrap();
 		assert_eq!(label, "Test");
 
 		// Reset label to original and test
 		collection.unlock().unwrap();
 		collection.set_label("Login").unwrap();
+
 		let label = collection.get_label().unwrap();
 		assert_eq!(label, "Login");
 
