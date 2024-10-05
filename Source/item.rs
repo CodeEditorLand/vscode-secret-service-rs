@@ -1,9 +1,13 @@
-//Copyright 2022 secret-service-rs Developers
+// Copyright 2022 secret-service-rs Developers
 //
 // Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
 // http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
+
+use std::collections::HashMap;
+
+use zbus::{zvariant::OwnedObjectPath, CacheProperties};
 
 use crate::{
 	error::Error,
@@ -13,23 +17,20 @@ use crate::{
 	util::{exec_prompt, format_secret, lock_or_unlock, LockAction},
 };
 
-use std::collections::HashMap;
-use zbus::{zvariant::OwnedObjectPath, CacheProperties};
-
 pub struct Item<'a> {
-	conn: zbus::Connection,
-	session: &'a Session,
-	pub item_path: OwnedObjectPath,
-	item_proxy: ItemProxy<'a>,
-	service_proxy: &'a ServiceProxy<'a>,
+	conn:zbus::Connection,
+	session:&'a Session,
+	pub item_path:OwnedObjectPath,
+	item_proxy:ItemProxy<'a>,
+	service_proxy:&'a ServiceProxy<'a>,
 }
 
 impl<'a> Item<'a> {
 	pub(crate) async fn new(
-		conn: zbus::Connection,
-		session: &'a Session,
-		service_proxy: &'a ServiceProxy<'a>,
-		item_path: OwnedObjectPath,
+		conn:zbus::Connection,
+		session:&'a Session,
+		service_proxy:&'a ServiceProxy<'a>,
+		item_path:OwnedObjectPath,
 	) -> Result<Item<'a>, Error> {
 		let item_proxy = ItemProxy::builder(&conn)
 			.destination(SS_DBUS_NAME)?
@@ -46,28 +47,39 @@ impl<'a> Item<'a> {
 	}
 
 	pub async fn ensure_unlocked(&self) -> Result<(), Error> {
-		if self.is_locked().await? {
-			Err(Error::Locked)
-		} else {
-			Ok(())
-		}
+		if self.is_locked().await? { Err(Error::Locked) } else { Ok(()) }
 	}
 
 	pub async fn unlock(&self) -> Result<(), Error> {
-		lock_or_unlock(self.conn.clone(), self.service_proxy, &self.item_path, LockAction::Unlock)
-			.await
+		lock_or_unlock(
+			self.conn.clone(),
+			self.service_proxy,
+			&self.item_path,
+			LockAction::Unlock,
+		)
+		.await
 	}
 
 	pub async fn lock(&self) -> Result<(), Error> {
-		lock_or_unlock(self.conn.clone(), self.service_proxy, &self.item_path, LockAction::Lock)
-			.await
+		lock_or_unlock(
+			self.conn.clone(),
+			self.service_proxy,
+			&self.item_path,
+			LockAction::Lock,
+		)
+		.await
 	}
 
-	pub async fn get_attributes(&self) -> Result<HashMap<String, String>, Error> {
+	pub async fn get_attributes(
+		&self,
+	) -> Result<HashMap<String, String>, Error> {
 		Ok(self.item_proxy.attributes().await?)
 	}
 
-	pub async fn set_attributes(&self, attributes: HashMap<&str, &str>) -> Result<(), Error> {
+	pub async fn set_attributes(
+		&self,
+		attributes:HashMap<&str, &str>,
+	) -> Result<(), Error> {
 		Ok(self.item_proxy.set_attributes(attributes).await?)
 	}
 
@@ -75,11 +87,12 @@ impl<'a> Item<'a> {
 		Ok(self.item_proxy.label().await?)
 	}
 
-	pub async fn set_label(&self, new_label: &str) -> Result<(), Error> {
+	pub async fn set_label(&self, new_label:&str) -> Result<(), Error> {
 		Ok(self.item_proxy.set_label(new_label).await?)
 	}
 
-	/// Deletes dbus object, but struct instance still exists (current implementation)
+	/// Deletes dbus object, but struct instance still exists (current
+	/// implementation)
 	pub async fn delete(&self) -> Result<(), Error> {
 		// ensure_unlocked handles prompt for unlocking if necessary
 		self.ensure_unlocked().await?;
@@ -95,7 +108,8 @@ impl<'a> Item<'a> {
 	}
 
 	pub async fn get_secret(&self) -> Result<Vec<u8>, Error> {
-		let secret_struct = self.item_proxy.get_secret(&self.session.object_path).await?;
+		let secret_struct =
+			self.item_proxy.get_secret(&self.session.object_path).await?;
 
 		let secret = secret_struct.value;
 
@@ -113,14 +127,19 @@ impl<'a> Item<'a> {
 	}
 
 	pub async fn get_secret_content_type(&self) -> Result<String, Error> {
-		let secret_struct = self.item_proxy.get_secret(&self.session.object_path).await?;
+		let secret_struct =
+			self.item_proxy.get_secret(&self.session.object_path).await?;
 
 		let content_type = secret_struct.content_type;
 
 		Ok(content_type)
 	}
 
-	pub async fn set_secret(&self, secret: &[u8], content_type: &str) -> Result<(), Error> {
+	pub async fn set_secret(
+		&self,
+		secret:&[u8],
+		content_type:&str,
+	) -> Result<(), Error> {
 		let secret_struct = format_secret(self.session, secret, content_type)?;
 		Ok(self.item_proxy.set_secret(secret_struct).await?)
 	}
@@ -136,7 +155,7 @@ impl<'a> Item<'a> {
 	/// Returns if an item is equal to `other`.
 	///
 	/// This is the equivalent of the `PartialEq` trait, but `async`.
-	pub async fn equal_to(&self, other: &Item<'_>) -> Result<bool, Error> {
+	pub async fn equal_to(&self, other:&Item<'_>) -> Result<bool, Error> {
 		let this_attrs = self.get_attributes().await?;
 
 		let other_attrs = other.get_attributes().await?;
@@ -149,8 +168,13 @@ impl<'a> Item<'a> {
 mod test {
 	use crate::*;
 
-	async fn create_test_default_item<'a>(collection: &'a Collection<'_>) -> Item<'a> {
-		collection.create_item("Test", HashMap::new(), b"test", false, "text/plain").await.unwrap()
+	async fn create_test_default_item<'a>(
+		collection:&'a Collection<'_>,
+	) -> Item<'a> {
+		collection
+			.create_item("Test", HashMap::new(), b"test", false, "text/plain")
+			.await
+			.unwrap()
 	}
 
 	#[tokio::test]
@@ -242,7 +266,10 @@ mod test {
 		let attributes = item.get_attributes().await.unwrap();
 		assert_eq!(
 			attributes,
-			HashMap::from([(String::from("test_attributes_in_item"), String::from("test"))])
+			HashMap::from([(
+				String::from("test_attributes_in_item"),
+				String::from("test")
+			)])
 		);
 		item.delete().await.unwrap();
 	}
@@ -257,14 +284,20 @@ mod test {
 
 		// Also test empty array handling
 		item.set_attributes(HashMap::new()).await.unwrap();
-		item.set_attributes(HashMap::from([("test_attributes_in_item_get", "test")]))
-			.await
-			.unwrap();
+		item.set_attributes(HashMap::from([(
+			"test_attributes_in_item_get",
+			"test",
+		)]))
+		.await
+		.unwrap();
 
 		let attributes = item.get_attributes().await.unwrap();
 		assert_eq!(
 			attributes,
-			HashMap::from([(String::from("test_attributes_in_item_get"), String::from("test"))])
+			HashMap::from([(
+				String::from("test_attributes_in_item_get"),
+				String::from("test")
+			)])
 		);
 		item.delete().await.unwrap();
 	}
@@ -346,7 +379,13 @@ mod test {
 		let collection = ss.get_default_collection().await.unwrap();
 
 		let item = collection
-			.create_item("Test", HashMap::new(), b"test_encrypted", false, "text/plain")
+			.create_item(
+				"Test",
+				HashMap::new(),
+				b"test_encrypted",
+				false,
+				"text/plain",
+			)
 			.await
 			.expect("Error on item creation");
 
@@ -357,7 +396,7 @@ mod test {
 
 	#[tokio::test]
 	async fn should_create_encrypted_item_from_empty_secret() {
-		//empty string
+		// empty string
 		let ss = SecretService::connect(EncryptionType::Dh).await.unwrap();
 
 		let collection = ss.get_default_collection().await.unwrap();
@@ -380,7 +419,10 @@ mod test {
 			let item = collection
 				.create_item(
 					"Test",
-					HashMap::from([("test_attributes_in_item_encrypt", "test")]),
+					HashMap::from([(
+						"test_attributes_in_item_encrypt",
+						"test",
+					)]),
 					b"test_encrypted",
 					false,
 					"text/plain",
@@ -394,7 +436,10 @@ mod test {
 			let ss = SecretService::connect(EncryptionType::Dh).await.unwrap();
 			let collection = ss.get_default_collection().await.unwrap();
 			let search_item = collection
-				.search_items(HashMap::from([("test_attributes_in_item_encrypt", "test")]))
+				.search_items(HashMap::from([(
+					"test_attributes_in_item_encrypt",
+					"test",
+				)]))
 				.await
 				.unwrap();
 			let item = search_item.get(0).unwrap();

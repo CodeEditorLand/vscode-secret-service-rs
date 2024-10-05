@@ -1,4 +1,4 @@
-//Copyright 2016 secret-service-rs Developers
+// Copyright 2016 secret-service-rs Developers
 //
 // Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
 // http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
@@ -9,6 +9,13 @@
 //!   locking/unlocking
 //!   exec_prompt
 //!   formatting secrets
+
+use rand::{rngs::OsRng, Rng};
+use zbus::{
+	export::ordered_stream::OrderedStreamExt,
+	zvariant::{self, ObjectPath},
+	CacheProperties,
+};
 
 use crate::{
 	error::Error,
@@ -21,13 +28,6 @@ use crate::{
 	ss::SS_DBUS_NAME,
 };
 
-use rand::{rngs::OsRng, Rng};
-use zbus::{
-	export::ordered_stream::OrderedStreamExt,
-	zvariant::{self, ObjectPath},
-	CacheProperties,
-};
-
 // Helper enum for locking
 pub(crate) enum LockAction {
 	Lock,
@@ -35,10 +35,10 @@ pub(crate) enum LockAction {
 }
 
 pub(crate) async fn lock_or_unlock(
-	conn: zbus::Connection,
-	service_proxy: &ServiceProxy<'_>,
-	object_path: &ObjectPath<'_>,
-	lock_action: LockAction,
+	conn:zbus::Connection,
+	service_proxy:&ServiceProxy<'_>,
+	object_path:&ObjectPath<'_>,
+	lock_action:LockAction,
 ) -> Result<(), Error> {
 	let objects = vec![object_path];
 
@@ -54,10 +54,10 @@ pub(crate) async fn lock_or_unlock(
 }
 
 pub(crate) fn lock_or_unlock_blocking(
-	conn: zbus::blocking::Connection,
-	service_proxy: &ServiceProxyBlocking,
-	object_path: &ObjectPath,
-	lock_action: LockAction,
+	conn:zbus::blocking::Connection,
+	service_proxy:&ServiceProxyBlocking,
+	object_path:&ObjectPath,
+	lock_action:LockAction,
 ) -> Result<(), Error> {
 	let objects = vec![object_path];
 
@@ -73,9 +73,9 @@ pub(crate) fn lock_or_unlock_blocking(
 }
 
 pub(crate) fn format_secret(
-	session: &Session,
-	secret: &[u8],
-	content_type: &str,
+	session:&Session,
+	secret:&[u8],
+	content_type:&str,
 ) -> Result<SecretStruct, Error> {
 	let content_type = content_type.to_owned();
 
@@ -92,23 +92,33 @@ pub(crate) fn format_secret(
 
 		let value = encrypted_secret;
 
-		Ok(SecretStruct { session: session.object_path.clone(), parameters, value, content_type })
+		Ok(SecretStruct {
+			session:session.object_path.clone(),
+			parameters,
+			value,
+			content_type,
+		})
 	} else {
 		// just Plain for now
 		let parameters = Vec::new();
 
 		let value = secret.to_vec();
 
-		Ok(SecretStruct { session: session.object_path.clone(), parameters, value, content_type })
+		Ok(SecretStruct {
+			session:session.object_path.clone(),
+			parameters,
+			value,
+			content_type,
+		})
 	}
 }
 
 // TODO: Users could pass their own window ID in.
-const NO_WINDOW_ID: &str = "";
+const NO_WINDOW_ID:&str = "";
 
 pub(crate) async fn exec_prompt(
-	conn: zbus::Connection,
-	prompt: &ObjectPath<'_>,
+	conn:zbus::Connection,
+	prompt:&ObjectPath<'_>,
 ) -> Result<zvariant::OwnedValue, Error> {
 	let prompt_proxy = PromptProxy::builder(&conn)
 		.destination(SS_DBUS_NAME)?
@@ -124,8 +134,8 @@ pub(crate) async fn exec_prompt(
 }
 
 pub(crate) fn exec_prompt_blocking(
-	conn: zbus::blocking::Connection,
-	prompt: &ObjectPath,
+	conn:zbus::blocking::Connection,
+	prompt:&ObjectPath,
 ) -> Result<zvariant::OwnedValue, Error> {
 	let prompt_proxy = PromptProxyBlocking::builder(&conn)
 		.destination(SS_DBUS_NAME)?
@@ -139,19 +149,19 @@ pub(crate) fn exec_prompt_blocking(
 	handle_signal(receive_completed_iter.next().unwrap())
 }
 
-fn handle_signal(signal: Completed) -> Result<zvariant::OwnedValue, Error> {
+fn handle_signal(signal:Completed) -> Result<zvariant::OwnedValue, Error> {
 	let args = signal.args()?;
-	if args.dismissed {
-		Err(Error::Prompt)
-	} else {
-		Ok(args.result.into())
-	}
+	if args.dismissed { Err(Error::Prompt) } else { Ok(args.result.into()) }
 }
 
-pub(crate) fn handle_conn_error(e: zbus::Error) -> Error {
+pub(crate) fn handle_conn_error(e:zbus::Error) -> Error {
 	match e {
-		zbus::Error::InterfaceNotFound | zbus::Error::Address(_) => Error::Unavailable,
-		zbus::Error::Io(e) if e.kind() == std::io::ErrorKind::NotFound => Error::Unavailable,
+		zbus::Error::InterfaceNotFound | zbus::Error::Address(_) => {
+			Error::Unavailable
+		},
+		zbus::Error::Io(e) if e.kind() == std::io::ErrorKind::NotFound => {
+			Error::Unavailable
+		},
 		e => e.into(),
 	}
 }

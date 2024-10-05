@@ -7,22 +7,30 @@
 
 //! A blocking secret service API.
 //!
-//! This `SecretService` will block the current thread when making requests to the
-//! secret service server instead of returning futures.
+//! This `SecretService` will block the current thread when making requests to
+//! the secret service server instead of returning futures.
 //!
-//! It is important to not call this these functions in an async context or otherwise the runtime
-//! may stall. See [zbus's blocking documentation] for more details. If you are in an async context,
-//! you should use the [async `SecretService`] instead.
+//! It is important to not call this these functions in an async context or
+//! otherwise the runtime may stall. See [zbus's blocking documentation] for
+//! more details. If you are in an async context, you should use the [async
+//! `SecretService`] instead.
 //!
 //! [zbus's blocking documentation]: https://docs.rs/zbus/latest/zbus/blocking/index.html
 //! [async `SecretService`]: crate::SecretService
 
-use crate::{
-	proxy::service::ServiceProxyBlocking, session::Session, ss::SS_COLLECTION_LABEL, util,
-	EncryptionType, Error, SearchItemsResult,
-};
 use std::collections::HashMap;
+
 use zbus::zvariant::{ObjectPath, Value};
+
+use crate::{
+	proxy::service::ServiceProxyBlocking,
+	session::Session,
+	ss::SS_COLLECTION_LABEL,
+	util,
+	EncryptionType,
+	Error,
+	SearchItemsResult,
+};
 
 mod collection;
 pub use collection::Collection;
@@ -37,17 +45,19 @@ pub use item::Item;
 /// and negotiate a new cryptographic session
 /// ([EncryptionType::Plain] or [EncryptionType::Dh])
 pub struct SecretService<'a> {
-	conn: zbus::blocking::Connection,
-	session: Session,
-	service_proxy: ServiceProxyBlocking<'a>,
+	conn:zbus::blocking::Connection,
+	session:Session,
+	service_proxy:ServiceProxyBlocking<'a>,
 }
 
 impl<'a> SecretService<'a> {
 	/// Create a new `SecretService` instance
-	pub fn connect(encryption: EncryptionType) -> Result<Self, Error> {
-		let conn = zbus::blocking::Connection::session().map_err(util::handle_conn_error)?;
+	pub fn connect(encryption:EncryptionType) -> Result<Self, Error> {
+		let conn = zbus::blocking::Connection::session()
+			.map_err(util::handle_conn_error)?;
 
-		let service_proxy = ServiceProxyBlocking::new(&conn).map_err(util::handle_conn_error)?;
+		let service_proxy = ServiceProxyBlocking::new(&conn)
+			.map_err(util::handle_conn_error)?;
 
 		let session = Session::new_blocking(&service_proxy, encryption)?;
 
@@ -75,13 +85,21 @@ impl<'a> SecretService<'a> {
 	/// Most common would be the `default` alias, but there
 	/// is also a specific method for getting the collection
 	/// by default alias.
-	pub fn get_collection_by_alias(&self, alias: &str) -> Result<Collection, Error> {
+	pub fn get_collection_by_alias(
+		&self,
+		alias:&str,
+	) -> Result<Collection, Error> {
 		let object_path = self.service_proxy.read_alias(alias)?;
 
 		if object_path.as_str() == "/" {
 			Err(Error::NoResult)
 		} else {
-			Ok(Collection::new(self.conn.clone(), &self.session, &self.service_proxy, object_path)?)
+			Ok(Collection::new(
+				self.conn.clone(),
+				&self.session,
+				&self.service_proxy,
+				object_path,
+			)?)
 		}
 	}
 
@@ -98,27 +116,32 @@ impl<'a> SecretService<'a> {
 	pub fn get_any_collection(&self) -> Result<Collection, Error> {
 		// default first, then session, then first
 
-		self.get_default_collection().or_else(|_| self.get_collection_by_alias("session")).or_else(
-			|_| {
+		self.get_default_collection()
+			.or_else(|_| self.get_collection_by_alias("session"))
+			.or_else(|_| {
 				let mut collections = self.get_all_collections()?;
 				if collections.is_empty() {
 					Err(Error::NoResult)
 				} else {
 					Ok(collections.swap_remove(0))
 				}
-			},
-		)
+			})
 	}
 
 	/// Creates a new collection with a label and an alias.
-	pub fn create_collection(&self, label: &str, alias: &str) -> Result<Collection, Error> {
-		let mut properties: HashMap<&str, Value> = HashMap::new();
+	pub fn create_collection(
+		&self,
+		label:&str,
+		alias:&str,
+	) -> Result<Collection, Error> {
+		let mut properties:HashMap<&str, Value> = HashMap::new();
 		properties.insert(SS_COLLECTION_LABEL, label.into());
 
-		let created_collection = self.service_proxy.create_collection(properties, alias)?;
+		let created_collection =
+			self.service_proxy.create_collection(properties, alias)?;
 
 		// This prompt handling is practically identical to create_collection
-		let collection_path: ObjectPath = {
+		let collection_path:ObjectPath = {
 			// Get path of created object
 			let created_path = created_collection.collection;
 
@@ -127,7 +150,10 @@ impl<'a> SecretService<'a> {
 				let prompt_path = created_collection.prompt;
 
 				// Exec prompt and parse result
-				let prompt_res = util::exec_prompt_blocking(self.conn.clone(), &prompt_path)?;
+				let prompt_res = util::exec_prompt_blocking(
+					self.conn.clone(),
+					&prompt_path,
+				)?;
 				prompt_res.try_into()?
 			} else {
 				// if not, just return created path
@@ -146,31 +172,38 @@ impl<'a> SecretService<'a> {
 	/// Searches all items by attributes
 	pub fn search_items(
 		&self,
-		attributes: HashMap<&str, &str>,
+		attributes:HashMap<&str, &str>,
 	) -> Result<SearchItemsResult<Item>, Error> {
 		let items = self.service_proxy.search_items(attributes)?;
 
-		let object_paths_to_items = |items: Vec<_>| {
+		let object_paths_to_items = |items:Vec<_>| {
 			items
 				.into_iter()
 				.map(|item_path| {
-					Item::new(self.conn.clone(), &self.session, &self.service_proxy, item_path)
+					Item::new(
+						self.conn.clone(),
+						&self.session,
+						&self.service_proxy,
+						item_path,
+					)
 				})
 				.collect::<Result<_, _>>()
 		};
 
 		Ok(SearchItemsResult {
-			unlocked: object_paths_to_items(items.unlocked)?,
-			locked: object_paths_to_items(items.locked)?,
+			unlocked:object_paths_to_items(items.unlocked)?,
+			locked:object_paths_to_items(items.locked)?,
 		})
 	}
 }
 
 #[cfg(test)]
 mod test {
-	use super::*;
 	use std::convert::TryFrom;
+
 	use zbus::zvariant::ObjectPath;
+
+	use super::*;
 
 	#[test]
 	fn should_create_secret_service() {
@@ -197,8 +230,9 @@ mod test {
 	fn should_return_error_if_collection_doesnt_exist() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
 
-		match ss.get_collection_by_alias("definitely_defintely_does_not_exist") {
-			Err(Error::NoResult) => {}
+		match ss.get_collection_by_alias("definitely_defintely_does_not_exist")
+		{
+			Err(Error::NoResult) => {},
 			_ => panic!(),
 		};
 	}
@@ -223,7 +257,8 @@ mod test {
 		let test_collection = ss.create_collection("Test", "").unwrap();
 		assert_eq!(
 			ObjectPath::from(test_collection.collection_path.clone()),
-			ObjectPath::try_from("/org/freedesktop/secrets/collection/Test").unwrap()
+			ObjectPath::try_from("/org/freedesktop/secrets/collection/Test")
+				.unwrap()
 		);
 		test_collection.delete().unwrap();
 	}
@@ -249,13 +284,18 @@ mod test {
 		ss.search_items(HashMap::new()).unwrap();
 
 		// handle no result
-		let bad_search = ss.search_items(HashMap::from([("test", "test")])).unwrap();
+		let bad_search =
+			ss.search_items(HashMap::from([("test", "test")])).unwrap();
 		assert_eq!(bad_search.unlocked.len(), 0);
 		assert_eq!(bad_search.locked.len(), 0);
 
 		// handle correct search for item and compare
-		let search_item =
-			ss.search_items(HashMap::from([("test_attribute_in_ss", "test_value")])).unwrap();
+		let search_item = ss
+			.search_items(HashMap::from([(
+				"test_attribute_in_ss",
+				"test_value",
+			)]))
+			.unwrap();
 
 		assert_eq!(item.item_path, search_item.unlocked[0].item_path);
 		assert_eq!(search_item.locked.len(), 0);

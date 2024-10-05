@@ -1,4 +1,4 @@
-//Copyright 2022 secret-service-rs Developers
+// Copyright 2022 secret-service-rs Developers
 //
 // Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
 // http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
@@ -8,6 +8,7 @@
 //! A dbus proxy for speaking with secret service's `Item` Interface.
 
 use std::collections::HashMap;
+
 use zbus::{
 	dbus_proxy,
 	zvariant::{ObjectPath, OwnedObjectPath},
@@ -23,9 +24,10 @@ trait Item {
 	fn delete(&self) -> zbus::Result<OwnedObjectPath>;
 
 	/// returns `Secret`
-	fn get_secret(&self, session: &ObjectPath<'_>) -> zbus::Result<SecretStruct>;
+	fn get_secret(&self, session:&ObjectPath<'_>)
+	-> zbus::Result<SecretStruct>;
 
-	fn set_secret(&self, secret: SecretStruct) -> zbus::Result<()>;
+	fn set_secret(&self, secret:SecretStruct) -> zbus::Result<()>;
 
 	#[dbus_proxy(property)]
 	fn locked(&self) -> zbus::fdo::Result<bool>;
@@ -34,13 +36,16 @@ trait Item {
 	fn attributes(&self) -> zbus::fdo::Result<HashMap<String, String>>;
 
 	#[dbus_proxy(property)]
-	fn set_attributes(&self, attributes: HashMap<&str, &str>) -> zbus::fdo::Result<()>;
+	fn set_attributes(
+		&self,
+		attributes:HashMap<&str, &str>,
+	) -> zbus::fdo::Result<()>;
 
 	#[dbus_proxy(property)]
 	fn label(&self) -> zbus::fdo::Result<String>;
 
 	#[dbus_proxy(property)]
-	fn set_label(&self, new_label: &str) -> zbus::fdo::Result<()>;
+	fn set_label(&self, new_label:&str) -> zbus::fdo::Result<()>;
 
 	#[dbus_proxy(property)]
 	fn created(&self) -> zbus::fdo::Result<u64>;

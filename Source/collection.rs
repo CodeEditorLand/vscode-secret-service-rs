@@ -5,37 +5,39 @@
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
 
+use std::collections::HashMap;
+
+use zbus::{
+	zvariant::{Dict, ObjectPath, OwnedObjectPath, Value},
+	CacheProperties,
+};
+
 use crate::{
 	proxy::{collection::CollectionProxy, service::ServiceProxy},
 	session::Session,
 	ss::{SS_DBUS_NAME, SS_ITEM_ATTRIBUTES, SS_ITEM_LABEL},
 	util::{exec_prompt, format_secret, lock_or_unlock, LockAction},
-	Error, Item,
-};
-
-use std::collections::HashMap;
-use zbus::{
-	zvariant::{Dict, ObjectPath, OwnedObjectPath, Value},
-	CacheProperties,
+	Error,
+	Item,
 };
 
 // Collection struct.
 // Should always be created from the SecretService entry point,
 // whether through a new collection or a collection search
 pub struct Collection<'a> {
-	conn: zbus::Connection,
-	session: &'a Session,
-	pub collection_path: OwnedObjectPath,
-	collection_proxy: CollectionProxy<'a>,
-	service_proxy: &'a ServiceProxy<'a>,
+	conn:zbus::Connection,
+	session:&'a Session,
+	pub collection_path:OwnedObjectPath,
+	collection_proxy:CollectionProxy<'a>,
+	service_proxy:&'a ServiceProxy<'a>,
 }
 
 impl<'a> Collection<'a> {
 	pub(crate) async fn new(
-		conn: zbus::Connection,
-		session: &'a Session,
-		service_proxy: &'a ServiceProxy<'_>,
-		collection_path: OwnedObjectPath,
+		conn:zbus::Connection,
+		session:&'a Session,
+		service_proxy:&'a ServiceProxy<'_>,
+		collection_path:OwnedObjectPath,
 	) -> Result<Collection<'a>, Error> {
 		let collection_proxy = CollectionProxy::builder(&conn)
 			.destination(SS_DBUS_NAME)?
@@ -44,7 +46,13 @@ impl<'a> Collection<'a> {
 			.build()
 			.await?;
 
-		Ok(Collection { conn, session, collection_path, collection_proxy, service_proxy })
+		Ok(Collection {
+			conn,
+			session,
+			collection_path,
+			collection_proxy,
+			service_proxy,
+		})
 	}
 
 	pub async fn is_locked(&self) -> Result<bool, Error> {
@@ -52,11 +60,7 @@ impl<'a> Collection<'a> {
 	}
 
 	pub async fn ensure_unlocked(&self) -> Result<(), Error> {
-		if self.is_locked().await? {
-			Err(Error::Locked)
-		} else {
-			Ok(())
-		}
+		if self.is_locked().await? { Err(Error::Locked) } else { Ok(()) }
 	}
 
 	pub async fn unlock(&self) -> Result<(), Error> {
@@ -79,7 +83,8 @@ impl<'a> Collection<'a> {
 		.await
 	}
 
-	/// Deletes dbus object, but struct instance still exists (current implementation)
+	/// Deletes dbus object, but struct instance still exists (current
+	/// implementation)
 	pub async fn delete(&self) -> Result<(), Error> {
 		// ensure_unlocked handles prompt for unlocking if necessary
 		self.ensure_unlocked().await?;
@@ -99,7 +104,12 @@ impl<'a> Collection<'a> {
 
 		// map array of item paths to Item
 		futures_util::future::join_all(items.into_iter().map(|item_path| {
-			Item::new(self.conn.clone(), self.session, self.service_proxy, item_path.into())
+			Item::new(
+				self.conn.clone(),
+				self.session,
+				self.service_proxy,
+				item_path.into(),
+			)
 		}))
 		.await
 		.into_iter()
@@ -108,13 +118,18 @@ impl<'a> Collection<'a> {
 
 	pub async fn search_items(
 		&self,
-		attributes: HashMap<&str, &str>,
+		attributes:HashMap<&str, &str>,
 	) -> Result<Vec<Item<'_>>, Error> {
 		let items = self.collection_proxy.search_items(attributes).await?;
 
 		// map array of item paths to Item
 		futures_util::future::join_all(items.into_iter().map(|item_path| {
-			Item::new(self.conn.clone(), self.session, self.service_proxy, item_path)
+			Item::new(
+				self.conn.clone(),
+				self.session,
+				self.service_proxy,
+				item_path,
+			)
 		}))
 		.await
 		.into_iter()
@@ -125,32 +140,34 @@ impl<'a> Collection<'a> {
 		Ok(self.collection_proxy.label().await?)
 	}
 
-	pub async fn set_label(&self, new_label: &str) -> Result<(), Error> {
+	pub async fn set_label(&self, new_label:&str) -> Result<(), Error> {
 		Ok(self.collection_proxy.set_label(new_label).await?)
 	}
 
 	pub async fn create_item(
 		&self,
-		label: &str,
-		attributes: HashMap<&str, &str>,
-		secret: &[u8],
-		replace: bool,
-		content_type: &str,
+		label:&str,
+		attributes:HashMap<&str, &str>,
+		secret:&[u8],
+		replace:bool,
+		content_type:&str,
 	) -> Result<Item<'_>, Error> {
 		let secret_struct = format_secret(self.session, secret, content_type)?;
 
-		let mut properties: HashMap<&str, Value> = HashMap::new();
+		let mut properties:HashMap<&str, Value> = HashMap::new();
 
-		let attributes: Dict = attributes.into();
+		let attributes:Dict = attributes.into();
 
 		properties.insert(SS_ITEM_LABEL, label.into());
 		properties.insert(SS_ITEM_ATTRIBUTES, attributes.into());
 
-		let created_item =
-			self.collection_proxy.create_item(properties, secret_struct, replace).await?;
+		let created_item = self
+			.collection_proxy
+			.create_item(properties, secret_struct, replace)
+			.await?;
 
 		// This prompt handling is practically identical to create_collection
-		let item_path: ObjectPath = {
+		let item_path:ObjectPath = {
 			// Get path of created object
 			let created_path = created_item.item;
 
@@ -159,7 +176,8 @@ impl<'a> Collection<'a> {
 				let prompt_path = created_item.prompt;
 
 				// Exec prompt and parse result
-				let prompt_res = exec_prompt(self.conn.clone(), &prompt_path).await?;
+				let prompt_res =
+					exec_prompt(self.conn.clone(), &prompt_path).await?;
 				prompt_res.try_into()?
 			} else {
 				// if not, just return created path
@@ -167,7 +185,13 @@ impl<'a> Collection<'a> {
 			}
 		};
 
-		Item::new(self.conn.clone(), self.session, self.service_proxy, item_path.into()).await
+		Item::new(
+			self.conn.clone(),
+			self.session,
+			self.service_proxy,
+			item_path.into(),
+		)
+		.await
 	}
 }
 
@@ -230,9 +254,13 @@ mod test {
 				collection.delete().await.unwrap();
 			}
 		}
-		//double check after
+		// double check after
 		let collections = ss.get_all_collections().await.unwrap();
-		assert!(collections.len() < count_before, "collections before delete {}", count_before);
+		assert!(
+			collections.len() < count_before,
+			"collections before delete {}",
+			count_before
+		);
 	}
 
 	#[tokio::test]
@@ -265,13 +293,18 @@ mod test {
 		collection.search_items(HashMap::new()).await.unwrap();
 
 		// handle no result
-		let bad_search =
-			collection.search_items(HashMap::from([("test_bad", "test")])).await.unwrap();
+		let bad_search = collection
+			.search_items(HashMap::from([("test_bad", "test")]))
+			.await
+			.unwrap();
 		assert_eq!(bad_search.len(), 0);
 
 		// handle correct search for item and compare
 		let search_item = collection
-			.search_items(HashMap::from([("test_attributes_in_collection", "test")]))
+			.search_items(HashMap::from([(
+				"test_attributes_in_collection",
+				"test",
+			)]))
 			.await
 			.unwrap();
 

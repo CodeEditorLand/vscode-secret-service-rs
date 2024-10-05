@@ -1,4 +1,4 @@
-//Copyright 2022 secret-service-rs Developers
+// Copyright 2022 secret-service-rs Developers
 //
 // Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
 // http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
@@ -13,7 +13,8 @@ use zbus::dbus_proxy;
 ///
 /// This will derive SessionProxy
 ///
-/// Note that `Value` in the method signatures corresponds to `VARIANT` dbus type.
+/// Note that `Value` in the method signatures corresponds to `VARIANT` dbus
+/// type.
 #[dbus_proxy(interface = "org.freedesktop.Secret.Session")]
 trait Session {
 	fn close(&self) -> zbus::Result<()>;
