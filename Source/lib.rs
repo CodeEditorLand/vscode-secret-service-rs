@@ -46,20 +46,15 @@
 //! 		.unwrap();
 //!
 //! 	// search items by properties
-//! 	let search_items = ss
-//! 		.search_items(HashMap::from([("test", "test_value")]))
-//! 		.await
-//! 		.unwrap();
+//! 	let search_items = ss.search_items(HashMap::from([("test", "test_value")])).await.unwrap();
 //!
 //! 	// retrieve one item, first by checking the unlocked items
 //! 	let item = match search_items.unlocked.first() {
 //! 		Some(item) => item,
 //! 		None => {
 //! 			// if there aren't any, check the locked items and unlock the first one
-//! 			let locked_item = search_items
-//! 				.locked
-//! 				.first()
-//! 				.expect("Search didn't return any items!");
+//! 			let locked_item =
+//! 				search_items.locked.first().expect("Search didn't return any items!");
 //! 			locked_item.unlock().await.unwrap();
 //! 			locked_item
 //! 		},
@@ -181,15 +176,10 @@ pub struct SearchItemsResult<T> {
 
 impl<'a> SecretService<'a> {
 	/// Create a new `SecretService` instance.
-	pub async fn connect(
-		encryption:EncryptionType,
-	) -> Result<SecretService<'a>, Error> {
-		let conn = zbus::Connection::session()
-			.await
-			.map_err(util::handle_conn_error)?;
+	pub async fn connect(encryption:EncryptionType) -> Result<SecretService<'a>, Error> {
+		let conn = zbus::Connection::session().await.map_err(util::handle_conn_error)?;
 
-		let service_proxy =
-			ServiceProxy::new(&conn).await.map_err(util::handle_conn_error)?;
+		let service_proxy = ServiceProxy::new(&conn).await.map_err(util::handle_conn_error)?;
 
 		let session = Session::new(&service_proxy, encryption).await?;
 
@@ -197,21 +187,17 @@ impl<'a> SecretService<'a> {
 	}
 
 	/// Get all collections
-	pub async fn get_all_collections(
-		&self,
-	) -> Result<Vec<Collection<'_>>, Error> {
+	pub async fn get_all_collections(&self) -> Result<Vec<Collection<'_>>, Error> {
 		let collections = self.service_proxy.collections().await?;
 
-		futures_util::future::join_all(collections.into_iter().map(
-			|object_path| {
-				Collection::new(
-					self.conn.clone(),
-					&self.session,
-					&self.service_proxy,
-					object_path.into(),
-				)
-			},
-		))
+		futures_util::future::join_all(collections.into_iter().map(|object_path| {
+			Collection::new(
+				self.conn.clone(),
+				&self.session,
+				&self.service_proxy,
+				object_path.into(),
+			)
+		}))
 		.await
 		.into_iter()
 		.collect::<Result<_, _>>()
@@ -222,30 +208,20 @@ impl<'a> SecretService<'a> {
 	/// Most common would be the `default` alias, but there
 	/// is also a specific method for getting the collection
 	/// by default alias.
-	pub async fn get_collection_by_alias(
-		&self,
-		alias:&str,
-	) -> Result<Collection<'_>, Error> {
+	pub async fn get_collection_by_alias(&self, alias:&str) -> Result<Collection<'_>, Error> {
 		let object_path = self.service_proxy.read_alias(alias).await?;
 
 		if object_path.as_str() == "/" {
 			Err(Error::NoResult)
 		} else {
-			Collection::new(
-				self.conn.clone(),
-				&self.session,
-				&self.service_proxy,
-				object_path,
-			)
-			.await
+			Collection::new(self.conn.clone(), &self.session, &self.service_proxy, object_path)
+				.await
 		}
 	}
 
 	/// Get default collection.
 	/// (The collection whos alias is `default`)
-	pub async fn get_default_collection(
-		&self,
-	) -> Result<Collection<'_>, Error> {
+	pub async fn get_default_collection(&self) -> Result<Collection<'_>, Error> {
 		self.get_collection_by_alias("default").await
 	}
 
@@ -272,16 +248,11 @@ impl<'a> SecretService<'a> {
 	}
 
 	/// Creates a new collection with a label and an alias.
-	pub async fn create_collection(
-		&self,
-		label:&str,
-		alias:&str,
-	) -> Result<Collection<'_>, Error> {
+	pub async fn create_collection(&self, label:&str, alias:&str) -> Result<Collection<'_>, Error> {
 		let mut properties:HashMap<&str, Value> = HashMap::new();
 		properties.insert(SS_COLLECTION_LABEL, label.into());
 
-		let created_collection =
-			self.service_proxy.create_collection(properties, alias).await?;
+		let created_collection = self.service_proxy.create_collection(properties, alias).await?;
 
 		// This prompt handling is practically identical to create_collection
 		let collection_path:ObjectPath = {
@@ -293,8 +264,7 @@ impl<'a> SecretService<'a> {
 				let prompt_path = created_collection.prompt;
 
 				// Exec prompt and parse result
-				let prompt_res =
-					exec_prompt(self.conn.clone(), &prompt_path).await?;
+				let prompt_res = exec_prompt(self.conn.clone(), &prompt_path).await?;
 				prompt_res.try_into()?
 			} else {
 				// if not, just return created path
@@ -320,12 +290,7 @@ impl<'a> SecretService<'a> {
 
 		let object_paths_to_items = |items:Vec<_>| {
 			futures_util::future::join_all(items.into_iter().map(|item_path| {
-				Item::new(
-					self.conn.clone(),
-					&self.session,
-					&self.service_proxy,
-					item_path,
-				)
+				Item::new(self.conn.clone(), &self.session, &self.service_proxy, item_path)
 			}))
 		};
 
@@ -374,10 +339,7 @@ mod test {
 	async fn should_return_error_if_collection_doesnt_exist() {
 		let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
 
-		match ss
-			.get_collection_by_alias("definitely_defintely_does_not_exist")
-			.await
-		{
+		match ss.get_collection_by_alias("definitely_defintely_does_not_exist").await {
 			Err(Error::NoResult) => {},
 			_ => panic!(),
 		};
@@ -403,8 +365,7 @@ mod test {
 		let test_collection = ss.create_collection("Test", "").await.unwrap();
 		assert_eq!(
 			ObjectPath::from(test_collection.collection_path.clone()),
-			ObjectPath::try_from("/org/freedesktop/secrets/collection/Test")
-				.unwrap()
+			ObjectPath::try_from("/org/freedesktop/secrets/collection/Test").unwrap()
 		);
 		test_collection.delete().await.unwrap();
 	}
@@ -431,17 +392,13 @@ mod test {
 		ss.search_items(HashMap::new()).await.unwrap();
 
 		// handle no result
-		let bad_search =
-			ss.search_items(HashMap::from([("test", "test")])).await.unwrap();
+		let bad_search = ss.search_items(HashMap::from([("test", "test")])).await.unwrap();
 		assert_eq!(bad_search.unlocked.len(), 0);
 		assert_eq!(bad_search.locked.len(), 0);
 
 		// handle correct search for item and compare
 		let search_item = ss
-			.search_items(HashMap::from([(
-				"test_attribute_in_ss",
-				"test_value",
-			)]))
+			.search_items(HashMap::from([("test_attribute_in_ss", "test_value")]))
 			.await
 			.unwrap();
 

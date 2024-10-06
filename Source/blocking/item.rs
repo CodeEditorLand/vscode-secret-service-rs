@@ -14,12 +14,7 @@ use crate::{
 	proxy::{item::ItemProxyBlocking, service::ServiceProxyBlocking},
 	session::{decrypt, Session},
 	ss::SS_DBUS_NAME,
-	util::{
-		exec_prompt_blocking,
-		format_secret,
-		lock_or_unlock_blocking,
-		LockAction,
-	},
+	util::{exec_prompt_blocking, format_secret, lock_or_unlock_blocking, LockAction},
 };
 
 pub struct Item<'a> {
@@ -45,9 +40,7 @@ impl<'a> Item<'a> {
 		Ok(Item { conn, session, item_path, item_proxy, service_proxy })
 	}
 
-	pub fn is_locked(&self) -> Result<bool, Error> {
-		Ok(self.item_proxy.locked()?)
-	}
+	pub fn is_locked(&self) -> Result<bool, Error> { Ok(self.item_proxy.locked()?) }
 
 	pub fn ensure_unlocked(&self) -> Result<(), Error> {
 		if self.is_locked()? { Err(Error::Locked) } else { Ok(()) }
@@ -75,16 +68,11 @@ impl<'a> Item<'a> {
 		Ok(self.item_proxy.attributes()?)
 	}
 
-	pub fn set_attributes(
-		&self,
-		attributes:HashMap<&str, &str>,
-	) -> Result<(), Error> {
+	pub fn set_attributes(&self, attributes:HashMap<&str, &str>) -> Result<(), Error> {
 		Ok(self.item_proxy.set_attributes(attributes)?)
 	}
 
-	pub fn get_label(&self) -> Result<String, Error> {
-		Ok(self.item_proxy.label()?)
-	}
+	pub fn get_label(&self) -> Result<String, Error> { Ok(self.item_proxy.label()?) }
 
 	pub fn set_label(&self, new_label:&str) -> Result<(), Error> {
 		Ok(self.item_proxy.set_label(new_label)?)
@@ -107,8 +95,7 @@ impl<'a> Item<'a> {
 	}
 
 	pub fn get_secret(&self) -> Result<Vec<u8>, Error> {
-		let secret_struct =
-			self.item_proxy.get_secret(&self.session.object_path)?;
+		let secret_struct = self.item_proxy.get_secret(&self.session.object_path)?;
 
 		let secret = secret_struct.value;
 
@@ -126,30 +113,21 @@ impl<'a> Item<'a> {
 	}
 
 	pub fn get_secret_content_type(&self) -> Result<String, Error> {
-		let secret_struct =
-			self.item_proxy.get_secret(&self.session.object_path)?;
+		let secret_struct = self.item_proxy.get_secret(&self.session.object_path)?;
 
 		let content_type = secret_struct.content_type;
 
 		Ok(content_type)
 	}
 
-	pub fn set_secret(
-		&self,
-		secret:&[u8],
-		content_type:&str,
-	) -> Result<(), Error> {
+	pub fn set_secret(&self, secret:&[u8], content_type:&str) -> Result<(), Error> {
 		let secret_struct = format_secret(self.session, secret, content_type)?;
 		Ok(self.item_proxy.set_secret(secret_struct)?)
 	}
 
-	pub fn get_created(&self) -> Result<u64, Error> {
-		Ok(self.item_proxy.created()?)
-	}
+	pub fn get_created(&self) -> Result<u64, Error> { Ok(self.item_proxy.created()?) }
 
-	pub fn get_modified(&self) -> Result<u64, Error> {
-		Ok(self.item_proxy.modified()?)
-	}
+	pub fn get_modified(&self) -> Result<u64, Error> { Ok(self.item_proxy.modified()?) }
 }
 
 impl<'a> Eq for Item<'a> {}
@@ -258,10 +236,7 @@ mod test {
 		let attributes = item.get_attributes().unwrap();
 		assert_eq!(
 			attributes,
-			HashMap::from([(
-				String::from("test_attributes_in_item"),
-				String::from("test")
-			)])
+			HashMap::from([(String::from("test_attributes_in_item"), String::from("test"))])
 		);
 		item.delete().unwrap();
 	}
@@ -276,19 +251,13 @@ mod test {
 
 		// Also test empty array handling
 		item.set_attributes(HashMap::new()).unwrap();
-		item.set_attributes(HashMap::from([(
-			"test_attributes_in_item_get",
-			"test",
-		)]))
-		.unwrap();
+		item.set_attributes(HashMap::from([("test_attributes_in_item_get", "test")]))
+			.unwrap();
 
 		let attributes = item.get_attributes().unwrap();
 		assert_eq!(
 			attributes,
-			HashMap::from([(
-				String::from("test_attributes_in_item_get"),
-				String::from("test")
-			)])
+			HashMap::from([(String::from("test_attributes_in_item_get"), String::from("test"))])
 		);
 		item.delete().unwrap();
 	}
@@ -370,13 +339,7 @@ mod test {
 		let collection = ss.get_default_collection().unwrap();
 
 		let item = collection
-			.create_item(
-				"Test",
-				HashMap::new(),
-				b"test_encrypted",
-				false,
-				"text/plain",
-			)
+			.create_item("Test", HashMap::new(), b"test_encrypted", false, "text/plain")
 			.expect("Error on item creation");
 
 		let secret = item.get_secret().unwrap();
@@ -407,10 +370,7 @@ mod test {
 			let item = collection
 				.create_item(
 					"Test",
-					HashMap::from([(
-						"test_attributes_in_item_encrypt",
-						"test",
-					)]),
+					HashMap::from([("test_attributes_in_item_encrypt", "test")]),
 					b"test_encrypted",
 					false,
 					"text/plain",
@@ -423,10 +383,7 @@ mod test {
 			let ss = SecretService::connect(EncryptionType::Dh).unwrap();
 			let collection = ss.get_default_collection().unwrap();
 			let search_item = collection
-				.search_items(HashMap::from([(
-					"test_attributes_in_item_encrypt",
-					"test",
-				)]))
+				.search_items(HashMap::from([("test_attributes_in_item_encrypt", "test")]))
 				.unwrap();
 			let item = search_item.get(0).unwrap();
 			assert_eq!(item.get_secret().unwrap(), b"test_encrypted");

@@ -40,20 +40,17 @@ use crate::{
 };
 
 // for key exchange
-static DH_GENERATOR:Lazy<BigUint> =
-	Lazy::new(|| BigUint::from_u64(0x2).unwrap());
+static DH_GENERATOR:Lazy<BigUint> = Lazy::new(|| BigUint::from_u64(0x2).unwrap());
 static DH_PRIME:Lazy<BigUint> = Lazy::new(|| {
 	BigUint::from_bytes_be(&[
-		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xC9, 0x0F, 0xDA, 0xA2,
-		0x21, 0x68, 0xC2, 0x34, 0xC4, 0xC6, 0x62, 0x8B, 0x80, 0xDC, 0x1C, 0xD1,
-		0x29, 0x02, 0x4E, 0x08, 0x8A, 0x67, 0xCC, 0x74, 0x02, 0x0B, 0xBE, 0xA6,
-		0x3B, 0x13, 0x9B, 0x22, 0x51, 0x4A, 0x08, 0x79, 0x8E, 0x34, 0x04, 0xDD,
-		0xEF, 0x95, 0x19, 0xB3, 0xCD, 0x3A, 0x43, 0x1B, 0x30, 0x2B, 0x0A, 0x6D,
-		0xF2, 0x5F, 0x14, 0x37, 0x4F, 0xE1, 0x35, 0x6D, 0x6D, 0x51, 0xC2, 0x45,
-		0xE4, 0x85, 0xB5, 0x76, 0x62, 0x5E, 0x7E, 0xC6, 0xF4, 0x4C, 0x42, 0xE9,
-		0xA6, 0x37, 0xED, 0x6B, 0x0B, 0xFF, 0x5C, 0xB6, 0xF4, 0x06, 0xB7, 0xED,
-		0xEE, 0x38, 0x6B, 0xFB, 0x5A, 0x89, 0x9F, 0xA5, 0xAE, 0x9F, 0x24, 0x11,
-		0x7C, 0x4B, 0x1F, 0xE6, 0x49, 0x28, 0x66, 0x51, 0xEC, 0xE6, 0x53, 0x81,
+		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xC9, 0x0F, 0xDA, 0xA2, 0x21, 0x68, 0xC2,
+		0x34, 0xC4, 0xC6, 0x62, 0x8B, 0x80, 0xDC, 0x1C, 0xD1, 0x29, 0x02, 0x4E, 0x08, 0x8A, 0x67,
+		0xCC, 0x74, 0x02, 0x0B, 0xBE, 0xA6, 0x3B, 0x13, 0x9B, 0x22, 0x51, 0x4A, 0x08, 0x79, 0x8E,
+		0x34, 0x04, 0xDD, 0xEF, 0x95, 0x19, 0xB3, 0xCD, 0x3A, 0x43, 0x1B, 0x30, 0x2B, 0x0A, 0x6D,
+		0xF2, 0x5F, 0x14, 0x37, 0x4F, 0xE1, 0x35, 0x6D, 0x6D, 0x51, 0xC2, 0x45, 0xE4, 0x85, 0xB5,
+		0x76, 0x62, 0x5E, 0x7E, 0xC6, 0xF4, 0x4C, 0x42, 0xE9, 0xA6, 0x37, 0xED, 0x6B, 0x0B, 0xFF,
+		0x5C, 0xB6, 0xF4, 0x06, 0xB7, 0xED, 0xEE, 0x38, 0x6B, 0xFB, 0x5A, 0x89, 0x9F, 0xA5, 0xAE,
+		0x9F, 0x24, 0x11, 0x7C, 0x4B, 0x1F, 0xE6, 0x49, 0x28, 0x66, 0x51, 0xEC, 0xE6, 0x53, 0x81,
 		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
 	])
 });
@@ -114,8 +111,7 @@ fn hkdf(ikm:Vec<u8>, salt:Option<&[u8]>, okm:&mut [u8]) {
 	let mut ctx = openssl::pkey_ctx::PkeyCtx::new_id(openssl::pkey::Id::HKDF)
 		.expect("hkdf context should not fail");
 	ctx.derive_init().expect("hkdf derive init should not fail");
-	ctx.set_hkdf_md(openssl::md::Md::sha256())
-		.expect("hkdf set md should not fail");
+	ctx.set_hkdf_md(openssl::md::Md::sha256()).expect("hkdf set md should not fail");
 
 	ctx.set_hkdf_key(&ikm).expect("hkdf set key should not fail");
 	if let Some(salt) = salt {
@@ -142,14 +138,9 @@ pub struct Session {
 }
 
 impl Session {
-	fn encrypted_session(
-		keypair:&Keypair,
-		session:OpenSessionResult,
-	) -> Result<Self, Error> {
-		let server_public_key = session
-			.output
-			.try_into()
-			.map(|key:Vec<u8>| BigUint::from_bytes_be(&key))?;
+	fn encrypted_session(keypair:&Keypair, session:OpenSessionResult) -> Result<Self, Error> {
+		let server_public_key =
+			session.output.try_into().map(|key:Vec<u8>| BigUint::from_bytes_be(&key))?;
 
 		let aes_key = keypair.derive_shared(&server_public_key);
 
@@ -162,8 +153,7 @@ impl Session {
 	) -> Result<Self, Error> {
 		match encryption {
 			EncryptionType::Plain => {
-				let session =
-					service_proxy.open_session(ALGORITHM_PLAIN, "".into())?;
+				let session = service_proxy.open_session(ALGORITHM_PLAIN, "".into())?;
 				let session_path = session.result;
 
 				Ok(Session { object_path:session_path, aes_key:None })
@@ -171,10 +161,8 @@ impl Session {
 			EncryptionType::Dh => {
 				let keypair = Keypair::generate();
 
-				let session = service_proxy.open_session(
-					ALGORITHM_DH,
-					keypair.public.to_bytes_be().into(),
-				)?;
+				let session = service_proxy
+					.open_session(ALGORITHM_DH, keypair.public.to_bytes_be().into())?;
 
 				Self::encrypted_session(&keypair, session)
 			},
@@ -187,9 +175,7 @@ impl Session {
 	) -> Result<Self, Error> {
 		match encryption {
 			EncryptionType::Plain => {
-				let session = service_proxy
-					.open_session(ALGORITHM_PLAIN, "".into())
-					.await?;
+				let session = service_proxy.open_session(ALGORITHM_PLAIN, "".into()).await?;
 				let session_path = session.result;
 
 				Ok(Session { object_path:session_path, aes_key:None })
@@ -198,10 +184,7 @@ impl Session {
 				let keypair = Keypair::generate();
 
 				let session = service_proxy
-					.open_session(
-						ALGORITHM_DH,
-						keypair.public.to_bytes_be().into(),
-					)
+					.open_session(ALGORITHM_DH, keypair.public.to_bytes_be().into())
 					.await?;
 
 				Self::encrypted_session(&keypair, session)
@@ -240,11 +223,7 @@ pub fn encrypt(data:&[u8], key:&AesKey, iv:&[u8]) -> Vec<u8> {
 }
 
 #[cfg(not(feature = "openssl"))]
-pub fn decrypt(
-	encrypted_data:&[u8],
-	key:&AesKey,
-	iv:&[u8],
-) -> Result<Vec<u8>, Error> {
+pub fn decrypt(encrypted_data:&[u8], key:&AesKey, iv:&[u8]) -> Result<Vec<u8>, Error> {
 	use aes::Aes128;
 	use block_modes::{block_padding::Pkcs7, BlockMode, Cbc};
 
@@ -264,18 +243,13 @@ pub fn encrypt(data:&[u8], key:&AesKey, iv:&[u8]) -> Vec<u8> {
 		.expect("cipher init should not fail");
 
 	let mut output = vec![];
-	ctx.cipher_update_vec(data, &mut output)
-		.expect("cipher update should not fail");
+	ctx.cipher_update_vec(data, &mut output).expect("cipher update should not fail");
 	ctx.cipher_final_vec(&mut output).expect("cipher final should not fail");
 	output
 }
 
 #[cfg(feature = "openssl")]
-pub fn decrypt(
-	encrypted_data:&[u8],
-	key:&AesKey,
-	iv:&[u8],
-) -> Result<Vec<u8>, Error> {
+pub fn decrypt(encrypted_data:&[u8], key:&AesKey, iv:&[u8]) -> Result<Vec<u8>, Error> {
 	use openssl::{cipher::Cipher, cipher_ctx::CipherCtx};
 
 	let mut ctx = CipherCtx::new().expect("cipher creation should not fail");
@@ -303,9 +277,7 @@ mod test {
 
 		let service_proxy = ServiceProxyBlocking::new(&conn).unwrap();
 
-		let session =
-			Session::new_blocking(&service_proxy, EncryptionType::Plain)
-				.unwrap();
+		let session = Session::new_blocking(&service_proxy, EncryptionType::Plain).unwrap();
 		assert!(session.get_aes_key().is_none());
 	}
 
@@ -315,8 +287,7 @@ mod test {
 
 		let service_proxy = ServiceProxyBlocking::new(&conn).unwrap();
 
-		let session =
-			Session::new_blocking(&service_proxy, EncryptionType::Dh).unwrap();
+		let session = Session::new_blocking(&service_proxy, EncryptionType::Dh).unwrap();
 		assert!(session.get_aes_key().is_some());
 	}
 }

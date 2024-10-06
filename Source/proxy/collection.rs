@@ -28,10 +28,7 @@ trait Collection {
 	/// Returns prompt: ObjectPath
 	fn delete(&self) -> zbus::Result<OwnedObjectPath>;
 
-	fn search_items(
-		&self,
-		attributes:HashMap<&str, &str>,
-	) -> zbus::Result<Vec<OwnedObjectPath>>;
+	fn search_items(&self, attributes:HashMap<&str, &str>) -> zbus::Result<Vec<OwnedObjectPath>>;
 
 	fn create_item(
 		&self,

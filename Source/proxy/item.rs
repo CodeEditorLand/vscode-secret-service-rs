@@ -24,8 +24,7 @@ trait Item {
 	fn delete(&self) -> zbus::Result<OwnedObjectPath>;
 
 	/// returns `Secret`
-	fn get_secret(&self, session:&ObjectPath<'_>)
-	-> zbus::Result<SecretStruct>;
+	fn get_secret(&self, session:&ObjectPath<'_>) -> zbus::Result<SecretStruct>;
 
 	fn set_secret(&self, secret:SecretStruct) -> zbus::Result<()>;
 
@@ -36,10 +35,7 @@ trait Item {
 	fn attributes(&self) -> zbus::fdo::Result<HashMap<String, String>>;
 
 	#[dbus_proxy(property)]
-	fn set_attributes(
-		&self,
-		attributes:HashMap<&str, &str>,
-	) -> zbus::fdo::Result<()>;
+	fn set_attributes(&self, attributes:HashMap<&str, &str>) -> zbus::fdo::Result<()>;
 
 	#[dbus_proxy(property)]
 	fn label(&self) -> zbus::fdo::Result<String>;

@@ -15,18 +15,10 @@ use zbus::{
 use super::item::Item;
 use crate::{
 	error::Error,
-	proxy::{
-		collection::CollectionProxyBlocking,
-		service::ServiceProxyBlocking,
-	},
+	proxy::{collection::CollectionProxyBlocking, service::ServiceProxyBlocking},
 	session::Session,
 	ss::{SS_DBUS_NAME, SS_ITEM_ATTRIBUTES, SS_ITEM_LABEL},
-	util::{
-		exec_prompt_blocking,
-		format_secret,
-		lock_or_unlock_blocking,
-		LockAction,
-	},
+	util::{exec_prompt_blocking, format_secret, lock_or_unlock_blocking, LockAction},
 };
 
 // Collection struct.
@@ -52,18 +44,10 @@ impl<'a> Collection<'a> {
 			.path(collection_path.clone())?
 			.cache_properties(CacheProperties::No)
 			.build()?;
-		Ok(Collection {
-			conn,
-			session,
-			collection_path,
-			collection_proxy,
-			service_proxy,
-		})
+		Ok(Collection { conn, session, collection_path, collection_proxy, service_proxy })
 	}
 
-	pub fn is_locked(&self) -> Result<bool, Error> {
-		Ok(self.collection_proxy.locked()?)
-	}
+	pub fn is_locked(&self) -> Result<bool, Error> { Ok(self.collection_proxy.locked()?) }
 
 	pub fn ensure_unlocked(&self) -> Result<(), Error> {
 		if self.is_locked()? { Err(Error::Locked) } else { Ok(()) }
@@ -110,43 +94,28 @@ impl<'a> Collection<'a> {
 		let res = items
 			.into_iter()
 			.map(|item_path| {
-				Item::new(
-					self.conn.clone(),
-					self.session,
-					self.service_proxy,
-					item_path.into(),
-				)
+				Item::new(self.conn.clone(), self.session, self.service_proxy, item_path.into())
 			})
 			.collect::<Result<_, _>>()?;
 
 		Ok(res)
 	}
 
-	pub fn search_items(
-		&self,
-		attributes:HashMap<&str, &str>,
-	) -> Result<Vec<Item>, Error> {
+	pub fn search_items(&self, attributes:HashMap<&str, &str>) -> Result<Vec<Item>, Error> {
 		let items = self.collection_proxy.search_items(attributes)?;
 
 		// map array of item paths to Item
 		let res = items
 			.into_iter()
 			.map(|item_path| {
-				Item::new(
-					self.conn.clone(),
-					self.session,
-					self.service_proxy,
-					item_path,
-				)
+				Item::new(self.conn.clone(), self.session, self.service_proxy, item_path)
 			})
 			.collect::<Result<_, _>>()?;
 
 		Ok(res)
 	}
 
-	pub fn get_label(&self) -> Result<String, Error> {
-		Ok(self.collection_proxy.label()?)
-	}
+	pub fn get_label(&self) -> Result<String, Error> { Ok(self.collection_proxy.label()?) }
 
 	pub fn set_label(&self, new_label:&str) -> Result<(), Error> {
 		Ok(self.collection_proxy.set_label(new_label)?)
@@ -169,11 +138,7 @@ impl<'a> Collection<'a> {
 		properties.insert(SS_ITEM_LABEL, label.into());
 		properties.insert(SS_ITEM_ATTRIBUTES, attributes.into());
 
-		let created_item = self.collection_proxy.create_item(
-			properties,
-			secret_struct,
-			replace,
-		)?;
+		let created_item = self.collection_proxy.create_item(properties, secret_struct, replace)?;
 
 		// This prompt handling is practically identical to create_collection
 		let item_path:ObjectPath = {
@@ -185,8 +150,7 @@ impl<'a> Collection<'a> {
 				let prompt_path = created_item.prompt;
 
 				// Exec prompt and parse result
-				let prompt_res =
-					exec_prompt_blocking(self.conn.clone(), &prompt_path)?;
+				let prompt_res = exec_prompt_blocking(self.conn.clone(), &prompt_path)?;
 				prompt_res.try_into()?
 			} else {
 				// if not, just return created path
@@ -194,12 +158,7 @@ impl<'a> Collection<'a> {
 			}
 		};
 
-		Item::new(
-			self.conn.clone(),
-			self.session,
-			self.service_proxy,
-			item_path.into(),
-		)
+		Item::new(self.conn.clone(), self.session, self.service_proxy, item_path.into())
 	}
 }
 
@@ -264,11 +223,7 @@ mod test {
 		}
 		// double check after
 		let collections = ss.get_all_collections().unwrap();
-		assert!(
-			collections.len() < count_before,
-			"collections before delete {}",
-			count_before
-		)
+		assert!(collections.len() < count_before, "collections before delete {}", count_before)
 	}
 
 	#[test]
@@ -300,17 +255,12 @@ mod test {
 		collection.search_items(HashMap::new()).unwrap();
 
 		// handle no result
-		let bad_search = collection
-			.search_items(HashMap::from([("test_bad", "test")]))
-			.unwrap();
+		let bad_search = collection.search_items(HashMap::from([("test_bad", "test")])).unwrap();
 		assert_eq!(bad_search.len(), 0);
 
 		// handle correct search for item and compare
 		let search_item = collection
-			.search_items(HashMap::from([(
-				"test_attributes_in_collection",
-				"test",
-			)]))
+			.search_items(HashMap::from([("test_attributes_in_collection", "test")]))
 			.unwrap();
 
 		assert_eq!(item.item_path, search_item[0].item_path);

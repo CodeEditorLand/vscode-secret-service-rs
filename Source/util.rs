@@ -92,24 +92,14 @@ pub(crate) fn format_secret(
 
 		let value = encrypted_secret;
 
-		Ok(SecretStruct {
-			session:session.object_path.clone(),
-			parameters,
-			value,
-			content_type,
-		})
+		Ok(SecretStruct { session:session.object_path.clone(), parameters, value, content_type })
 	} else {
 		// just Plain for now
 		let parameters = Vec::new();
 
 		let value = secret.to_vec();
 
-		Ok(SecretStruct {
-			session:session.object_path.clone(),
-			parameters,
-			value,
-			content_type,
-		})
+		Ok(SecretStruct { session:session.object_path.clone(), parameters, value, content_type })
 	}
 }
 
@@ -156,12 +146,8 @@ fn handle_signal(signal:Completed) -> Result<zvariant::OwnedValue, Error> {
 
 pub(crate) fn handle_conn_error(e:zbus::Error) -> Error {
 	match e {
-		zbus::Error::InterfaceNotFound | zbus::Error::Address(_) => {
-			Error::Unavailable
-		},
-		zbus::Error::Io(e) if e.kind() == std::io::ErrorKind::NotFound => {
-			Error::Unavailable
-		},
+		zbus::Error::InterfaceNotFound | zbus::Error::Address(_) => Error::Unavailable,
+		zbus::Error::Io(e) if e.kind() == std::io::ErrorKind::NotFound => Error::Unavailable,
 		e => e.into(),
 	}
 }

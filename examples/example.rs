@@ -48,10 +48,7 @@ async fn main() {
 		None => {
 			// if there aren't any, check the locked items and unlock the first
 			// one
-			let locked_item = search_items
-				.locked
-				.first()
-				.expect("Search didn't return any items!");
+			let locked_item = search_items.locked.first().expect("Search didn't return any items!");
 			locked_item.unlock().await.unwrap();
 			locked_item
 		},

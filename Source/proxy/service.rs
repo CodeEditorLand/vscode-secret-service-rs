@@ -29,11 +29,7 @@ use super::SecretStruct;
 	default_path = "/org/freedesktop/secrets"
 )]
 trait Service {
-	fn open_session(
-		&self,
-		algorithm:&str,
-		input:Value<'_>,
-	) -> zbus::Result<OpenSessionResult>;
+	fn open_session(&self, algorithm:&str, input:Value<'_>) -> zbus::Result<OpenSessionResult>;
 
 	fn create_collection(
 		&self,
@@ -41,20 +37,11 @@ trait Service {
 		alias:&str,
 	) -> zbus::Result<CreateCollectionResult>;
 
-	fn search_items(
-		&self,
-		attributes:HashMap<&str, &str>,
-	) -> zbus::Result<SearchItemsResult>;
+	fn search_items(&self, attributes:HashMap<&str, &str>) -> zbus::Result<SearchItemsResult>;
 
-	fn unlock(
-		&self,
-		objects:Vec<&ObjectPath<'_>>,
-	) -> zbus::Result<LockActionResult>;
+	fn unlock(&self, objects:Vec<&ObjectPath<'_>>) -> zbus::Result<LockActionResult>;
 
-	fn lock(
-		&self,
-		objects:Vec<&ObjectPath<'_>>,
-	) -> zbus::Result<LockActionResult>;
+	fn lock(&self, objects:Vec<&ObjectPath<'_>>) -> zbus::Result<LockActionResult>;
 
 	fn get_secrets(
 		&self,
@@ -63,11 +50,7 @@ trait Service {
 
 	fn read_alias(&self, name:&str) -> zbus::Result<OwnedObjectPath>;
 
-	fn set_alias(
-		&self,
-		name:&str,
-		collection:ObjectPath<'_>,
-	) -> zbus::Result<()>;
+	fn set_alias(&self, name:&str, collection:ObjectPath<'_>) -> zbus::Result<()>;
 
 	#[dbus_proxy(property)]
 	fn collections(&self) -> zbus::fdo::Result<Vec<ObjectPath<'_>>>;

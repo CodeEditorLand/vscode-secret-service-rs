@@ -42,13 +42,9 @@ impl fmt::Display for Error {
 			Error::ZbusFdo(err) => write!(f, "zbus fdo error: {}", err),
 			Error::Zvariant(err) => write!(f, "zbus serde error: {}", err),
 			Error::Locked => f.write_str("SS Error: object locked"),
-			Error::NoResult => {
-				f.write_str("SS error: result not returned from SS API")
-			},
+			Error::NoResult => f.write_str("SS error: result not returned from SS API"),
 			Error::Prompt => f.write_str("SS error: prompt dismissed"),
-			Error::Unavailable => {
-				f.write_str("no secret service provider or dbus session found")
-			},
+			Error::Unavailable => f.write_str("no secret service provider or dbus session found"),
 		}
 	}
 }

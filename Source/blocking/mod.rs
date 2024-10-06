@@ -53,11 +53,9 @@ pub struct SecretService<'a> {
 impl<'a> SecretService<'a> {
 	/// Create a new `SecretService` instance
 	pub fn connect(encryption:EncryptionType) -> Result<Self, Error> {
-		let conn = zbus::blocking::Connection::session()
-			.map_err(util::handle_conn_error)?;
+		let conn = zbus::blocking::Connection::session().map_err(util::handle_conn_error)?;
 
-		let service_proxy = ServiceProxyBlocking::new(&conn)
-			.map_err(util::handle_conn_error)?;
+		let service_proxy = ServiceProxyBlocking::new(&conn).map_err(util::handle_conn_error)?;
 
 		let session = Session::new_blocking(&service_proxy, encryption)?;
 
@@ -85,10 +83,7 @@ impl<'a> SecretService<'a> {
 	/// Most common would be the `default` alias, but there
 	/// is also a specific method for getting the collection
 	/// by default alias.
-	pub fn get_collection_by_alias(
-		&self,
-		alias:&str,
-	) -> Result<Collection, Error> {
+	pub fn get_collection_by_alias(&self, alias:&str) -> Result<Collection, Error> {
 		let object_path = self.service_proxy.read_alias(alias)?;
 
 		if object_path.as_str() == "/" {
@@ -129,16 +124,11 @@ impl<'a> SecretService<'a> {
 	}
 
 	/// Creates a new collection with a label and an alias.
-	pub fn create_collection(
-		&self,
-		label:&str,
-		alias:&str,
-	) -> Result<Collection, Error> {
+	pub fn create_collection(&self, label:&str, alias:&str) -> Result<Collection, Error> {
 		let mut properties:HashMap<&str, Value> = HashMap::new();
 		properties.insert(SS_COLLECTION_LABEL, label.into());
 
-		let created_collection =
-			self.service_proxy.create_collection(properties, alias)?;
+		let created_collection = self.service_proxy.create_collection(properties, alias)?;
 
 		// This prompt handling is practically identical to create_collection
 		let collection_path:ObjectPath = {
@@ -150,10 +140,7 @@ impl<'a> SecretService<'a> {
 				let prompt_path = created_collection.prompt;
 
 				// Exec prompt and parse result
-				let prompt_res = util::exec_prompt_blocking(
-					self.conn.clone(),
-					&prompt_path,
-				)?;
+				let prompt_res = util::exec_prompt_blocking(self.conn.clone(), &prompt_path)?;
 				prompt_res.try_into()?
 			} else {
 				// if not, just return created path
@@ -180,12 +167,7 @@ impl<'a> SecretService<'a> {
 			items
 				.into_iter()
 				.map(|item_path| {
-					Item::new(
-						self.conn.clone(),
-						&self.session,
-						&self.service_proxy,
-						item_path,
-					)
+					Item::new(self.conn.clone(), &self.session, &self.service_proxy, item_path)
 				})
 				.collect::<Result<_, _>>()
 		};
@@ -206,9 +188,7 @@ mod test {
 	use super::*;
 
 	#[test]
-	fn should_create_secret_service() {
-		SecretService::connect(EncryptionType::Plain).unwrap();
-	}
+	fn should_create_secret_service() { SecretService::connect(EncryptionType::Plain).unwrap(); }
 
 	#[test]
 	fn should_get_all_collections() {
@@ -230,8 +210,7 @@ mod test {
 	fn should_return_error_if_collection_doesnt_exist() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
 
-		match ss.get_collection_by_alias("definitely_defintely_does_not_exist")
-		{
+		match ss.get_collection_by_alias("definitely_defintely_does_not_exist") {
 			Err(Error::NoResult) => {},
 			_ => panic!(),
 		};
@@ -257,8 +236,7 @@ mod test {
 		let test_collection = ss.create_collection("Test", "").unwrap();
 		assert_eq!(
 			ObjectPath::from(test_collection.collection_path.clone()),
-			ObjectPath::try_from("/org/freedesktop/secrets/collection/Test")
-				.unwrap()
+			ObjectPath::try_from("/org/freedesktop/secrets/collection/Test").unwrap()
 		);
 		test_collection.delete().unwrap();
 	}
@@ -284,17 +262,13 @@ mod test {
 		ss.search_items(HashMap::new()).unwrap();
 
 		// handle no result
-		let bad_search =
-			ss.search_items(HashMap::from([("test", "test")])).unwrap();
+		let bad_search = ss.search_items(HashMap::from([("test", "test")])).unwrap();
 		assert_eq!(bad_search.unlocked.len(), 0);
 		assert_eq!(bad_search.locked.len(), 0);
 
 		// handle correct search for item and compare
 		let search_item = ss
-			.search_items(HashMap::from([(
-				"test_attribute_in_ss",
-				"test_value",
-			)]))
+			.search_items(HashMap::from([("test_attribute_in_ss", "test_value")]))
 			.unwrap();
 
 		assert_eq!(item.item_path, search_item.unlocked[0].item_path);

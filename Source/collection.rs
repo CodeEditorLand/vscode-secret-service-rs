@@ -46,13 +46,7 @@ impl<'a> Collection<'a> {
 			.build()
 			.await?;
 
-		Ok(Collection {
-			conn,
-			session,
-			collection_path,
-			collection_proxy,
-			service_proxy,
-		})
+		Ok(Collection { conn, session, collection_path, collection_proxy, service_proxy })
 	}
 
 	pub async fn is_locked(&self) -> Result<bool, Error> {
@@ -104,12 +98,7 @@ impl<'a> Collection<'a> {
 
 		// map array of item paths to Item
 		futures_util::future::join_all(items.into_iter().map(|item_path| {
-			Item::new(
-				self.conn.clone(),
-				self.session,
-				self.service_proxy,
-				item_path.into(),
-			)
+			Item::new(self.conn.clone(), self.session, self.service_proxy, item_path.into())
 		}))
 		.await
 		.into_iter()
@@ -124,12 +113,7 @@ impl<'a> Collection<'a> {
 
 		// map array of item paths to Item
 		futures_util::future::join_all(items.into_iter().map(|item_path| {
-			Item::new(
-				self.conn.clone(),
-				self.session,
-				self.service_proxy,
-				item_path,
-			)
+			Item::new(self.conn.clone(), self.session, self.service_proxy, item_path)
 		}))
 		.await
 		.into_iter()
@@ -161,10 +145,8 @@ impl<'a> Collection<'a> {
 		properties.insert(SS_ITEM_LABEL, label.into());
 		properties.insert(SS_ITEM_ATTRIBUTES, attributes.into());
 
-		let created_item = self
-			.collection_proxy
-			.create_item(properties, secret_struct, replace)
-			.await?;
+		let created_item =
+			self.collection_proxy.create_item(properties, secret_struct, replace).await?;
 
 		// This prompt handling is practically identical to create_collection
 		let item_path:ObjectPath = {
@@ -176,8 +158,7 @@ impl<'a> Collection<'a> {
 				let prompt_path = created_item.prompt;
 
 				// Exec prompt and parse result
-				let prompt_res =
-					exec_prompt(self.conn.clone(), &prompt_path).await?;
+				let prompt_res = exec_prompt(self.conn.clone(), &prompt_path).await?;
 				prompt_res.try_into()?
 			} else {
 				// if not, just return created path
@@ -185,13 +166,7 @@ impl<'a> Collection<'a> {
 			}
 		};
 
-		Item::new(
-			self.conn.clone(),
-			self.session,
-			self.service_proxy,
-			item_path.into(),
-		)
-		.await
+		Item::new(self.conn.clone(), self.session, self.service_proxy, item_path.into()).await
 	}
 }
 
@@ -256,11 +231,7 @@ mod test {
 		}
 		// double check after
 		let collections = ss.get_all_collections().await.unwrap();
-		assert!(
-			collections.len() < count_before,
-			"collections before delete {}",
-			count_before
-		);
+		assert!(collections.len() < count_before, "collections before delete {}", count_before);
 	}
 
 	#[tokio::test]
@@ -293,18 +264,13 @@ mod test {
 		collection.search_items(HashMap::new()).await.unwrap();
 
 		// handle no result
-		let bad_search = collection
-			.search_items(HashMap::from([("test_bad", "test")]))
-			.await
-			.unwrap();
+		let bad_search =
+			collection.search_items(HashMap::from([("test_bad", "test")])).await.unwrap();
 		assert_eq!(bad_search.len(), 0);
 
 		// handle correct search for item and compare
 		let search_item = collection
-			.search_items(HashMap::from([(
-				"test_attributes_in_collection",
-				"test",
-			)]))
+			.search_items(HashMap::from([("test_attributes_in_collection", "test")]))
 			.await
 			.unwrap();
 
