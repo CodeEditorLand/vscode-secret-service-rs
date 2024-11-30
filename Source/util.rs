@@ -50,6 +50,7 @@ pub(crate) async fn lock_or_unlock(
 	if lock_action_res.object_paths.is_empty() {
 		exec_prompt(conn, &lock_action_res.prompt).await?;
 	}
+
 	Ok(())
 }
 
@@ -69,6 +70,7 @@ pub(crate) fn lock_or_unlock_blocking(
 	if lock_action_res.object_paths.is_empty() {
 		exec_prompt_blocking(conn, &lock_action_res.prompt)?;
 	}
+
 	Ok(())
 }
 
@@ -83,6 +85,7 @@ pub(crate) fn format_secret(
 		let mut rng = OsRng {};
 
 		let mut aes_iv = [0; 16];
+
 		rng.fill(&mut aes_iv);
 
 		let encrypted_secret = encrypt(secret, session_key, &aes_iv);
@@ -118,6 +121,7 @@ pub(crate) async fn exec_prompt(
 		.await?;
 
 	let mut receive_completed_iter = prompt_proxy.receive_completed().await?;
+
 	prompt_proxy.prompt(NO_WINDOW_ID).await?;
 
 	handle_signal(receive_completed_iter.next().await.unwrap())
@@ -134,6 +138,7 @@ pub(crate) fn exec_prompt_blocking(
 		.build()?;
 
 	let mut receive_completed_iter = prompt_proxy.receive_completed()?;
+
 	prompt_proxy.prompt(NO_WINDOW_ID)?;
 
 	handle_signal(receive_completed_iter.next().unwrap())
@@ -141,6 +146,7 @@ pub(crate) fn exec_prompt_blocking(
 
 fn handle_signal(signal:Completed) -> Result<zvariant::OwnedValue, Error> {
 	let args = signal.args()?;
+
 	if args.dismissed { Err(Error::Prompt) } else { Ok(args.result.into()) }
 }
 

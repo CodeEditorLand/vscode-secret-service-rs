@@ -116,6 +116,7 @@ impl<'a> Item<'a> {
 
 	pub async fn set_secret(&self, secret:&[u8], content_type:&str) -> Result<(), Error> {
 		let secret_struct = format_secret(self.session, secret, content_type)?;
+
 		Ok(self.item_proxy.set_secret(secret_struct).await?)
 	}
 
@@ -170,6 +171,7 @@ mod test {
 		let item = create_test_default_item(&collection).await;
 
 		item.is_locked().await.unwrap();
+
 		item.delete().await.unwrap();
 	}
 
@@ -183,19 +185,29 @@ mod test {
 		let item = create_test_default_item(&collection).await;
 
 		let locked = item.is_locked().await.unwrap();
+
 		if locked {
 			item.unlock().await.unwrap();
+
 			item.ensure_unlocked().await.unwrap();
+
 			assert!(!item.is_locked().await.unwrap());
+
 			item.lock().await.unwrap();
+
 			assert!(item.is_locked().await.unwrap());
 		} else {
 			item.lock().await.unwrap();
+
 			assert!(item.is_locked().await.unwrap());
+
 			item.unlock().await.unwrap();
+
 			item.ensure_unlocked().await.unwrap();
+
 			assert!(!item.is_locked().await.unwrap());
 		}
+
 		item.delete().await.unwrap();
 	}
 
@@ -211,7 +223,9 @@ mod test {
 		item.set_label("Tester").await.unwrap();
 
 		let label = item.get_label().await.unwrap();
+
 		assert_eq!(label, "Tester");
+
 		item.delete().await.unwrap();
 	}
 
@@ -233,10 +247,12 @@ mod test {
 			.unwrap();
 
 		let attributes = item.get_attributes().await.unwrap();
+
 		assert_eq!(
 			attributes,
 			HashMap::from([(String::from("test_attributes_in_item"), String::from("test"))])
 		);
+
 		item.delete().await.unwrap();
 	}
 
@@ -250,15 +266,18 @@ mod test {
 
 		// Also test empty array handling
 		item.set_attributes(HashMap::new()).await.unwrap();
+
 		item.set_attributes(HashMap::from([("test_attributes_in_item_get", "test")]))
 			.await
 			.unwrap();
 
 		let attributes = item.get_attributes().await.unwrap();
+
 		assert_eq!(
 			attributes,
 			HashMap::from([(String::from("test_attributes_in_item_get"), String::from("test"))])
 		);
+
 		item.delete().await.unwrap();
 	}
 
@@ -275,6 +294,7 @@ mod test {
 		let _created = item.get_created().await.unwrap();
 
 		let _modified = item.get_modified().await.unwrap();
+
 		item.delete().await.unwrap();
 	}
 
@@ -287,7 +307,9 @@ mod test {
 		let item = create_test_default_item(&collection).await;
 
 		let secret = item.get_secret().await.unwrap();
+
 		item.delete().await.unwrap();
+
 		assert_eq!(secret, b"test");
 	}
 
@@ -300,7 +322,9 @@ mod test {
 		let item = create_test_default_item(&collection).await;
 
 		let secret = item.get_secret().await.unwrap();
+
 		item.delete().await.unwrap();
+
 		assert_eq!(secret, b"test");
 	}
 
@@ -313,7 +337,9 @@ mod test {
 		let item = create_test_default_item(&collection).await;
 
 		let content_type = item.get_secret_content_type().await.unwrap();
+
 		item.delete().await.unwrap();
+
 		assert_eq!(content_type, "text/plain".to_owned());
 	}
 
@@ -328,7 +354,9 @@ mod test {
 		item.set_secret(b"new_test", "text/plain").await.unwrap();
 
 		let secret = item.get_secret().await.unwrap();
+
 		item.delete().await.unwrap();
+
 		assert_eq!(secret, b"new_test");
 	}
 
@@ -344,7 +372,9 @@ mod test {
 			.expect("Error on item creation");
 
 		let secret = item.get_secret().await.unwrap();
+
 		item.delete().await.unwrap();
+
 		assert_eq!(secret, b"test_encrypted");
 	}
 
@@ -361,7 +391,9 @@ mod test {
 			.expect("Error on item creation");
 
 		let secret = item.get_secret().await.unwrap();
+
 		item.delete().await.unwrap();
+
 		assert_eq!(secret, b"");
 	}
 
@@ -369,7 +401,9 @@ mod test {
 	async fn should_get_encrypted_secret_across_dbus_connections() {
 		{
 			let ss = SecretService::connect(EncryptionType::Dh).await.unwrap();
+
 			let collection = ss.get_default_collection().await.unwrap();
+
 			let item = collection
 				.create_item(
 					"Test",
@@ -380,18 +414,25 @@ mod test {
 				)
 				.await
 				.expect("Error on item creation");
+
 			let secret = item.get_secret().await.unwrap();
+
 			assert_eq!(secret, b"test_encrypted");
 		}
 		{
 			let ss = SecretService::connect(EncryptionType::Dh).await.unwrap();
+
 			let collection = ss.get_default_collection().await.unwrap();
+
 			let search_item = collection
 				.search_items(HashMap::from([("test_attributes_in_item_encrypt", "test")]))
 				.await
 				.unwrap();
+
 			let item = search_item.get(0).unwrap();
+
 			assert_eq!(item.get_secret().await.unwrap(), b"test_encrypted");
+
 			item.delete().await.unwrap();
 		}
 	}

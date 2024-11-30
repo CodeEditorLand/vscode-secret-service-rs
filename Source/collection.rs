@@ -143,6 +143,7 @@ impl<'a> Collection<'a> {
 		let attributes:Dict = attributes.into();
 
 		properties.insert(SS_ITEM_LABEL, label.into());
+
 		properties.insert(SS_ITEM_ATTRIBUTES, attributes.into());
 
 		let created_item =
@@ -159,6 +160,7 @@ impl<'a> Collection<'a> {
 
 				// Exec prompt and parse result
 				let prompt_res = exec_prompt(self.conn.clone(), &prompt_path).await?;
+
 				prompt_res.try_into()?
 			} else {
 				// if not, just return created path
@@ -199,17 +201,26 @@ mod test {
 		let collection = ss.get_default_collection().await.unwrap();
 
 		let locked = collection.is_locked().await.unwrap();
+
 		if locked {
 			collection.unlock().await.unwrap();
+
 			collection.ensure_unlocked().await.unwrap();
+
 			assert!(!collection.is_locked().await.unwrap());
+
 			collection.lock().await.unwrap();
+
 			assert!(collection.is_locked().await.unwrap());
 		} else {
 			collection.lock().await.unwrap();
+
 			assert!(collection.is_locked().await.unwrap());
+
 			collection.unlock().await.unwrap();
+
 			collection.ensure_unlocked().await.unwrap();
+
 			assert!(!collection.is_locked().await.unwrap());
 		}
 	}
@@ -222,15 +233,19 @@ mod test {
 		let collections = ss.get_all_collections().await.unwrap();
 
 		let count_before = collections.len();
+
 		for collection in collections {
 			let collection_path = &*collection.collection_path;
+
 			if collection_path.contains("Test") {
 				collection.unlock().await.unwrap();
+
 				collection.delete().await.unwrap();
 			}
 		}
 		// double check after
 		let collections = ss.get_all_collections().await.unwrap();
+
 		assert!(collections.len() < count_before, "collections before delete {}", count_before);
 	}
 
@@ -239,6 +254,7 @@ mod test {
 		let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
 
 		let collection = ss.get_default_collection().await.unwrap();
+
 		collection.get_all_items().await.unwrap();
 	}
 
@@ -266,6 +282,7 @@ mod test {
 		// handle no result
 		let bad_search =
 			collection.search_items(HashMap::from([("test_bad", "test")])).await.unwrap();
+
 		assert_eq!(bad_search.len(), 0);
 
 		// handle correct search for item and compare
@@ -275,6 +292,7 @@ mod test {
 			.unwrap();
 
 		assert_eq!(item.item_path, search_item[0].item_path);
+
 		item.delete().await.unwrap();
 	}
 
@@ -286,20 +304,25 @@ mod test {
 		let collection = ss.get_default_collection().await.unwrap();
 
 		let label = collection.get_label().await.unwrap();
+
 		assert_eq!(label, "Login");
 
 		// Set label to test and check
 		collection.unlock().await.unwrap();
+
 		collection.set_label("Test").await.unwrap();
 
 		let label = collection.get_label().await.unwrap();
+
 		assert_eq!(label, "Test");
 
 		// Reset label to original and test
 		collection.unlock().await.unwrap();
+
 		collection.set_label("Login").await.unwrap();
 
 		let label = collection.get_label().await.unwrap();
+
 		assert_eq!(label, "Login");
 
 		collection.lock().await.unwrap();

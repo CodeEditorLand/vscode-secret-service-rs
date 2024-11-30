@@ -37,6 +37,7 @@ impl<'a> Item<'a> {
 			.path(item_path.clone())?
 			.cache_properties(CacheProperties::No)
 			.build()?;
+
 		Ok(Item { conn, session, item_path, item_proxy, service_proxy })
 	}
 
@@ -122,6 +123,7 @@ impl<'a> Item<'a> {
 
 	pub fn set_secret(&self, secret:&[u8], content_type:&str) -> Result<(), Error> {
 		let secret_struct = format_secret(self.session, secret, content_type)?;
+
 		Ok(self.item_proxy.set_secret(secret_struct)?)
 	}
 
@@ -172,6 +174,7 @@ mod test {
 		let item = create_test_default_item(&collection);
 
 		item.is_locked().unwrap();
+
 		item.delete().unwrap();
 	}
 
@@ -185,19 +188,29 @@ mod test {
 		let item = create_test_default_item(&collection);
 
 		let locked = item.is_locked().unwrap();
+
 		if locked {
 			item.unlock().unwrap();
+
 			item.ensure_unlocked().unwrap();
+
 			assert!(!item.is_locked().unwrap());
+
 			item.lock().unwrap();
+
 			assert!(item.is_locked().unwrap());
 		} else {
 			item.lock().unwrap();
+
 			assert!(item.is_locked().unwrap());
+
 			item.unlock().unwrap();
+
 			item.ensure_unlocked().unwrap();
+
 			assert!(!item.is_locked().unwrap());
 		}
+
 		item.delete().unwrap();
 	}
 
@@ -213,7 +226,9 @@ mod test {
 		item.set_label("Tester").unwrap();
 
 		let label = item.get_label().unwrap();
+
 		assert_eq!(label, "Tester");
+
 		item.delete().unwrap();
 	}
 
@@ -234,10 +249,12 @@ mod test {
 			.unwrap();
 
 		let attributes = item.get_attributes().unwrap();
+
 		assert_eq!(
 			attributes,
 			HashMap::from([(String::from("test_attributes_in_item"), String::from("test"))])
 		);
+
 		item.delete().unwrap();
 	}
 
@@ -251,14 +268,17 @@ mod test {
 
 		// Also test empty array handling
 		item.set_attributes(HashMap::new()).unwrap();
+
 		item.set_attributes(HashMap::from([("test_attributes_in_item_get", "test")]))
 			.unwrap();
 
 		let attributes = item.get_attributes().unwrap();
+
 		assert_eq!(
 			attributes,
 			HashMap::from([(String::from("test_attributes_in_item_get"), String::from("test"))])
 		);
+
 		item.delete().unwrap();
 	}
 
@@ -275,6 +295,7 @@ mod test {
 		let _created = item.get_created().unwrap();
 
 		let _modified = item.get_modified().unwrap();
+
 		item.delete().unwrap();
 	}
 
@@ -287,7 +308,9 @@ mod test {
 		let item = create_test_default_item(&collection);
 
 		let secret = item.get_secret().unwrap();
+
 		item.delete().unwrap();
+
 		assert_eq!(secret, b"test");
 	}
 
@@ -300,7 +323,9 @@ mod test {
 		let item = create_test_default_item(&collection);
 
 		let secret = item.get_secret().unwrap();
+
 		item.delete().unwrap();
+
 		assert_eq!(secret, b"test");
 	}
 
@@ -313,7 +338,9 @@ mod test {
 		let item = create_test_default_item(&collection);
 
 		let content_type = item.get_secret_content_type().unwrap();
+
 		item.delete().unwrap();
+
 		assert_eq!(content_type, "text/plain".to_owned());
 	}
 
@@ -328,7 +355,9 @@ mod test {
 		item.set_secret(b"new_test", "text/plain").unwrap();
 
 		let secret = item.get_secret().unwrap();
+
 		item.delete().unwrap();
+
 		assert_eq!(secret, b"new_test");
 	}
 
@@ -343,7 +372,9 @@ mod test {
 			.expect("Error on item creation");
 
 		let secret = item.get_secret().unwrap();
+
 		item.delete().unwrap();
+
 		assert_eq!(secret, b"test_encrypted");
 	}
 
@@ -358,7 +389,9 @@ mod test {
 			.expect("Error on item creation");
 
 		let secret = item.get_secret().unwrap();
+
 		item.delete().unwrap();
+
 		assert_eq!(secret, b"");
 	}
 
@@ -366,7 +399,9 @@ mod test {
 	fn should_get_encrypted_secret_across_dbus_connections() {
 		{
 			let ss = SecretService::connect(EncryptionType::Dh).unwrap();
+
 			let collection = ss.get_default_collection().unwrap();
+
 			let item = collection
 				.create_item(
 					"Test",
@@ -376,17 +411,24 @@ mod test {
 					"text/plain",
 				)
 				.expect("Error on item creation");
+
 			let secret = item.get_secret().unwrap();
+
 			assert_eq!(secret, b"test_encrypted");
 		}
 		{
 			let ss = SecretService::connect(EncryptionType::Dh).unwrap();
+
 			let collection = ss.get_default_collection().unwrap();
+
 			let search_item = collection
 				.search_items(HashMap::from([("test_attributes_in_item_encrypt", "test")]))
 				.unwrap();
+
 			let item = search_item.get(0).unwrap();
+
 			assert_eq!(item.get_secret().unwrap(), b"test_encrypted");
+
 			item.delete().unwrap();
 		}
 	}

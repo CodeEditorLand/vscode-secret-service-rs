@@ -65,6 +65,7 @@ impl<'a> SecretService<'a> {
 	/// Get all collections
 	pub fn get_all_collections(&self) -> Result<Vec<Collection>, Error> {
 		let collections = self.service_proxy.collections()?;
+
 		collections
 			.into_iter()
 			.map(|object_path| {
@@ -115,6 +116,7 @@ impl<'a> SecretService<'a> {
 			.or_else(|_| self.get_collection_by_alias("session"))
 			.or_else(|_| {
 				let mut collections = self.get_all_collections()?;
+
 				if collections.is_empty() {
 					Err(Error::NoResult)
 				} else {
@@ -126,6 +128,7 @@ impl<'a> SecretService<'a> {
 	/// Creates a new collection with a label and an alias.
 	pub fn create_collection(&self, label:&str, alias:&str) -> Result<Collection, Error> {
 		let mut properties:HashMap<&str, Value> = HashMap::new();
+
 		properties.insert(SS_COLLECTION_LABEL, label.into());
 
 		let created_collection = self.service_proxy.create_collection(properties, alias)?;
@@ -141,6 +144,7 @@ impl<'a> SecretService<'a> {
 
 				// Exec prompt and parse result
 				let prompt_res = util::exec_prompt_blocking(self.conn.clone(), &prompt_path)?;
+
 				prompt_res.try_into()?
 			} else {
 				// if not, just return created path
@@ -197,12 +201,14 @@ mod test {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
 
 		let collections = ss.get_all_collections().unwrap();
+
 		assert!(!collections.is_empty(), "no collections found");
 	}
 
 	#[test]
 	fn should_get_collection_by_alias() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
+
 		ss.get_collection_by_alias("session").unwrap();
 	}
 
@@ -219,6 +225,7 @@ mod test {
 	#[test]
 	fn should_get_default_collection() {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
+
 		ss.get_default_collection().unwrap();
 	}
 
@@ -234,10 +241,12 @@ mod test {
 		let ss = SecretService::connect(EncryptionType::Plain).unwrap();
 
 		let test_collection = ss.create_collection("Test", "").unwrap();
+
 		assert_eq!(
 			ObjectPath::from(test_collection.collection_path.clone()),
 			ObjectPath::try_from("/org/freedesktop/secrets/collection/Test").unwrap()
 		);
+
 		test_collection.delete().unwrap();
 	}
 
@@ -263,7 +272,9 @@ mod test {
 
 		// handle no result
 		let bad_search = ss.search_items(HashMap::from([("test", "test")])).unwrap();
+
 		assert_eq!(bad_search.unlocked.len(), 0);
+
 		assert_eq!(bad_search.locked.len(), 0);
 
 		// handle correct search for item and compare
@@ -272,7 +283,9 @@ mod test {
 			.unwrap();
 
 		assert_eq!(item.item_path, search_item.unlocked[0].item_path);
+
 		assert_eq!(search_item.locked.len(), 0);
+
 		item.delete().unwrap();
 	}
 }

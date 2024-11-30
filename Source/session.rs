@@ -73,6 +73,7 @@ impl Keypair {
 		let mut rng = OsRng {};
 
 		let mut private_key_bytes = [0; 128];
+
 		rng.fill(&mut private_key_bytes);
 
 		let private_key = BigUint::from_bytes_be(&private_key_bytes);
@@ -89,6 +90,7 @@ impl Keypair {
 		let mut common_secret_bytes = common_secret.to_bytes_be();
 
 		let mut common_secret_padded = vec![0; 128 - common_secret_bytes.len()];
+
 		common_secret_padded.append(&mut common_secret_bytes);
 
 		// hkdf
@@ -100,6 +102,7 @@ impl Keypair {
 
 		// output keying material
 		let mut okm = [0; 16];
+
 		hkdf(ikm, salt, &mut okm);
 
 		GenericArray::clone_from_slice(&okm)
@@ -110,25 +113,32 @@ impl Keypair {
 fn hkdf(ikm:Vec<u8>, salt:Option<&[u8]>, okm:&mut [u8]) {
 	let mut ctx = openssl::pkey_ctx::PkeyCtx::new_id(openssl::pkey::Id::HKDF)
 		.expect("hkdf context should not fail");
+
 	ctx.derive_init().expect("hkdf derive init should not fail");
+
 	ctx.set_hkdf_md(openssl::md::Md::sha256()).expect("hkdf set md should not fail");
 
 	ctx.set_hkdf_key(&ikm).expect("hkdf set key should not fail");
+
 	if let Some(salt) = salt {
 		ctx.set_hkdf_salt(salt).expect("hkdf set salt should not fail");
 	}
 
 	ctx.add_hkdf_info(&[]).unwrap();
+
 	ctx.derive(Some(okm)).expect("hkdf expand should never fail");
 }
 
 #[cfg(not(feature = "openssl"))]
 fn hkdf(ikm:Vec<u8>, salt:Option<&[u8]>, okm:&mut [u8]) {
 	use hkdf::Hkdf;
+
 	use sha2::Sha256;
 
 	let info = [];
+
 	let (_, hk) = Hkdf::<Sha256>::extract(salt, &ikm);
+
 	hk.expand(&info, okm).expect("hkdf expand should never fail");
 }
 
@@ -154,6 +164,7 @@ impl Session {
 		match encryption {
 			EncryptionType::Plain => {
 				let session = service_proxy.open_session(ALGORITHM_PLAIN, "".into())?;
+
 				let session_path = session.result;
 
 				Ok(Session { object_path:session_path, aes_key:None })
@@ -176,6 +187,7 @@ impl Session {
 		match encryption {
 			EncryptionType::Plain => {
 				let session = service_proxy.open_session(ALGORITHM_PLAIN, "".into()).await?;
+
 				let session_path = session.result;
 
 				Ok(Session { object_path:session_path, aes_key:None })
@@ -198,14 +210,18 @@ impl Session {
 /// from https://github.com/plietar/librespot/blob/master/core/src/util/mod.rs#L53
 fn powm(base:&BigUint, exp:&BigUint, modulus:&BigUint) -> BigUint {
 	let mut base = base.clone();
+
 	let mut exp = exp.clone();
+
 	let mut result:BigUint = One::one();
 
 	while !exp.is_zero() {
 		if exp.is_odd() {
 			result = result.mul(&base).rem(modulus);
 		}
+
 		exp = exp.shr(1);
+
 		base = (&base).mul(&base).rem(modulus);
 	}
 
@@ -215,20 +231,26 @@ fn powm(base:&BigUint, exp:&BigUint, modulus:&BigUint) -> BigUint {
 #[cfg(not(feature = "openssl"))]
 pub fn encrypt(data:&[u8], key:&AesKey, iv:&[u8]) -> Vec<u8> {
 	use aes::Aes128;
+
 	use block_modes::{block_padding::Pkcs7, BlockMode, Cbc};
 
 	let iv = GenericArray::from_slice(iv);
+
 	let cipher = Cbc::<Aes128, Pkcs7>::new_fix(key, iv);
+
 	cipher.encrypt_vec(data)
 }
 
 #[cfg(not(feature = "openssl"))]
 pub fn decrypt(encrypted_data:&[u8], key:&AesKey, iv:&[u8]) -> Result<Vec<u8>, Error> {
 	use aes::Aes128;
+
 	use block_modes::{block_padding::Pkcs7, BlockMode, Cbc};
 
 	let iv = GenericArray::from_slice(iv);
+
 	let cipher = Cbc::<Aes128, Pkcs7>::new_fix(key, iv);
+
 	cipher
 		.decrypt_vec(encrypted_data)
 		.map_err(|_| Error::Crypto("message decryption failed"))
@@ -239,12 +261,16 @@ pub fn encrypt(data:&[u8], key:&AesKey, iv:&[u8]) -> Vec<u8> {
 	use openssl::{cipher::Cipher, cipher_ctx::CipherCtx};
 
 	let mut ctx = CipherCtx::new().expect("cipher creation should not fail");
+
 	ctx.encrypt_init(Some(Cipher::aes_128_cbc()), Some(key), Some(iv))
 		.expect("cipher init should not fail");
 
 	let mut output = vec![];
+
 	ctx.cipher_update_vec(data, &mut output).expect("cipher update should not fail");
+
 	ctx.cipher_final_vec(&mut output).expect("cipher final should not fail");
+
 	output
 }
 
@@ -253,14 +279,18 @@ pub fn decrypt(encrypted_data:&[u8], key:&AesKey, iv:&[u8]) -> Result<Vec<u8>, E
 	use openssl::{cipher::Cipher, cipher_ctx::CipherCtx};
 
 	let mut ctx = CipherCtx::new().expect("cipher creation should not fail");
+
 	ctx.decrypt_init(Some(Cipher::aes_128_cbc()), Some(key), Some(iv))
 		.expect("cipher init should not fail");
 
 	let mut output = vec![];
+
 	ctx.cipher_update_vec(encrypted_data, &mut output)
 		.map_err(|_| Error::Crypto("message decryption failed"))?;
+
 	ctx.cipher_final_vec(&mut output)
 		.map_err(|_| Error::Crypto("message decryption failed"))?;
+
 	Ok(output)
 }
 
@@ -278,6 +308,7 @@ mod test {
 		let service_proxy = ServiceProxyBlocking::new(&conn).unwrap();
 
 		let session = Session::new_blocking(&service_proxy, EncryptionType::Plain).unwrap();
+
 		assert!(session.get_aes_key().is_none());
 	}
 
@@ -288,6 +319,7 @@ mod test {
 		let service_proxy = ServiceProxyBlocking::new(&conn).unwrap();
 
 		let session = Session::new_blocking(&service_proxy, EncryptionType::Dh).unwrap();
+
 		assert!(session.get_aes_key().is_some());
 	}
 }

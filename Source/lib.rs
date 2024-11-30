@@ -237,6 +237,7 @@ impl<'a> SecretService<'a> {
 			.or_else(|_| {
 				async {
 					let mut collections = self.get_all_collections().await?;
+
 					if collections.is_empty() {
 						Err(Error::NoResult)
 					} else {
@@ -250,6 +251,7 @@ impl<'a> SecretService<'a> {
 	/// Creates a new collection with a label and an alias.
 	pub async fn create_collection(&self, label:&str, alias:&str) -> Result<Collection<'_>, Error> {
 		let mut properties:HashMap<&str, Value> = HashMap::new();
+
 		properties.insert(SS_COLLECTION_LABEL, label.into());
 
 		let created_collection = self.service_proxy.create_collection(properties, alias).await?;
@@ -265,6 +267,7 @@ impl<'a> SecretService<'a> {
 
 				// Exec prompt and parse result
 				let prompt_res = exec_prompt(self.conn.clone(), &prompt_path).await?;
+
 				prompt_res.try_into()?
 			} else {
 				// if not, just return created path
@@ -326,12 +329,14 @@ mod test {
 		let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
 
 		let collections = ss.get_all_collections().await.unwrap();
+
 		assert!(!collections.is_empty(), "no collections found");
 	}
 
 	#[tokio::test]
 	async fn should_get_collection_by_alias() {
 		let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
+
 		ss.get_collection_by_alias("session").await.unwrap();
 	}
 
@@ -348,6 +353,7 @@ mod test {
 	#[tokio::test]
 	async fn should_get_default_collection() {
 		let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
+
 		ss.get_default_collection().await.unwrap();
 	}
 
@@ -363,10 +369,12 @@ mod test {
 		let ss = SecretService::connect(EncryptionType::Plain).await.unwrap();
 
 		let test_collection = ss.create_collection("Test", "").await.unwrap();
+
 		assert_eq!(
 			ObjectPath::from(test_collection.collection_path.clone()),
 			ObjectPath::try_from("/org/freedesktop/secrets/collection/Test").unwrap()
 		);
+
 		test_collection.delete().await.unwrap();
 	}
 
@@ -393,7 +401,9 @@ mod test {
 
 		// handle no result
 		let bad_search = ss.search_items(HashMap::from([("test", "test")])).await.unwrap();
+
 		assert_eq!(bad_search.unlocked.len(), 0);
+
 		assert_eq!(bad_search.locked.len(), 0);
 
 		// handle correct search for item and compare
@@ -403,7 +413,9 @@ mod test {
 			.unwrap();
 
 		assert_eq!(item.item_path, search_item.unlocked[0].item_path);
+
 		assert_eq!(search_item.locked.len(), 0);
+
 		item.delete().await.unwrap();
 	}
 }
