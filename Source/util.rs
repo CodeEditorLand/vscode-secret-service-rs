@@ -10,21 +10,21 @@
 //!   exec_prompt
 //!   formatting secrets
 
-use rand::{rngs::OsRng, Rng};
+use rand::{Rng, rngs::OsRng};
 use zbus::{
+	CacheProperties,
 	export::ordered_stream::OrderedStreamExt,
 	zvariant::{self, ObjectPath},
-	CacheProperties,
 };
 
 use crate::{
 	error::Error,
 	proxy::{
+		SecretStruct,
 		prompt::{Completed, PromptProxy, PromptProxyBlocking},
 		service::{ServiceProxy, ServiceProxyBlocking},
-		SecretStruct,
 	},
-	session::{encrypt, Session},
+	session::{Session, encrypt},
 	ss::SS_DBUS_NAME,
 };
 

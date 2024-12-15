@@ -22,21 +22,21 @@
 
 use std::ops::{Mul, Rem, Shr};
 
-use generic_array::{typenum::U16, GenericArray};
+use generic_array::{GenericArray, typenum::U16};
 use num::{
+	FromPrimitive,
 	bigint::BigUint,
 	integer::Integer,
 	traits::{One, Zero},
-	FromPrimitive,
 };
 use once_cell::sync::Lazy;
-use rand::{rngs::OsRng, Rng};
+use rand::{Rng, rngs::OsRng};
 use zbus::zvariant::OwnedObjectPath;
 
 use crate::{
+	Error,
 	proxy::service::{OpenSessionResult, ServiceProxy, ServiceProxyBlocking},
 	ss::{ALGORITHM_DH, ALGORITHM_PLAIN},
-	Error,
 };
 
 // for key exchange
@@ -132,7 +132,6 @@ fn hkdf(ikm:Vec<u8>, salt:Option<&[u8]>, okm:&mut [u8]) {
 #[cfg(not(feature = "openssl"))]
 fn hkdf(ikm:Vec<u8>, salt:Option<&[u8]>, okm:&mut [u8]) {
 	use hkdf::Hkdf;
-
 	use sha2::Sha256;
 
 	let info = [];
@@ -231,8 +230,7 @@ fn powm(base:&BigUint, exp:&BigUint, modulus:&BigUint) -> BigUint {
 #[cfg(not(feature = "openssl"))]
 pub fn encrypt(data:&[u8], key:&AesKey, iv:&[u8]) -> Vec<u8> {
 	use aes::Aes128;
-
-	use block_modes::{block_padding::Pkcs7, BlockMode, Cbc};
+	use block_modes::{BlockMode, Cbc, block_padding::Pkcs7};
 
 	let iv = GenericArray::from_slice(iv);
 
@@ -244,8 +242,7 @@ pub fn encrypt(data:&[u8], key:&AesKey, iv:&[u8]) -> Vec<u8> {
 #[cfg(not(feature = "openssl"))]
 pub fn decrypt(encrypted_data:&[u8], key:&AesKey, iv:&[u8]) -> Result<Vec<u8>, Error> {
 	use aes::Aes128;
-
-	use block_modes::{block_padding::Pkcs7, BlockMode, Cbc};
+	use block_modes::{BlockMode, Cbc, block_padding::Pkcs7};
 
 	let iv = GenericArray::from_slice(iv);
 

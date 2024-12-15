@@ -23,13 +23,13 @@ use std::collections::HashMap;
 use zbus::zvariant::{ObjectPath, Value};
 
 use crate::{
+	EncryptionType,
+	Error,
+	SearchItemsResult,
 	proxy::service::ServiceProxyBlocking,
 	session::Session,
 	ss::SS_COLLECTION_LABEL,
 	util,
-	EncryptionType,
-	Error,
-	SearchItemsResult,
 };
 
 mod collection;

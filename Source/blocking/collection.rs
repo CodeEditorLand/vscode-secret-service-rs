@@ -8,8 +8,8 @@
 use std::collections::HashMap;
 
 use zbus::{
-	zvariant::{Dict, ObjectPath, OwnedObjectPath, Value},
 	CacheProperties,
+	zvariant::{Dict, ObjectPath, OwnedObjectPath, Value},
 };
 
 use super::item::Item;
@@ -18,7 +18,7 @@ use crate::{
 	proxy::{collection::CollectionProxyBlocking, service::ServiceProxyBlocking},
 	session::Session,
 	ss::{SS_DBUS_NAME, SS_ITEM_ATTRIBUTES, SS_ITEM_LABEL},
-	util::{exec_prompt_blocking, format_secret, lock_or_unlock_blocking, LockAction},
+	util::{LockAction, exec_prompt_blocking, format_secret, lock_or_unlock_blocking},
 };
 
 // Collection struct.

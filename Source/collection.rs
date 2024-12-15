@@ -8,17 +8,17 @@
 use std::collections::HashMap;
 
 use zbus::{
-	zvariant::{Dict, ObjectPath, OwnedObjectPath, Value},
 	CacheProperties,
+	zvariant::{Dict, ObjectPath, OwnedObjectPath, Value},
 };
 
 use crate::{
+	Error,
+	Item,
 	proxy::{collection::CollectionProxy, service::ServiceProxy},
 	session::Session,
 	ss::{SS_DBUS_NAME, SS_ITEM_ATTRIBUTES, SS_ITEM_LABEL},
-	util::{exec_prompt, format_secret, lock_or_unlock, LockAction},
-	Error,
-	Item,
+	util::{LockAction, exec_prompt, format_secret, lock_or_unlock},
 };
 
 // Collection struct.

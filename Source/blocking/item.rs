@@ -7,14 +7,14 @@
 
 use std::collections::HashMap;
 
-use zbus::{zvariant::OwnedObjectPath, CacheProperties};
+use zbus::{CacheProperties, zvariant::OwnedObjectPath};
 
 use crate::{
 	error::Error,
 	proxy::{item::ItemProxyBlocking, service::ServiceProxyBlocking},
-	session::{decrypt, Session},
+	session::{Session, decrypt},
 	ss::SS_DBUS_NAME,
-	util::{exec_prompt_blocking, format_secret, lock_or_unlock_blocking, LockAction},
+	util::{LockAction, exec_prompt_blocking, format_secret, lock_or_unlock_blocking},
 };
 
 pub struct Item<'a> {
